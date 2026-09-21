@@ -55,8 +55,9 @@ both run, and the dashboard already shows that collision so it can be moved.
 5. **Running one item.** One `claude -p` at a time, with the agent definition,
    prompt, tools, folders, model, per-item budget and time limit the agent
    names. Captures the session, the cost and the text.
-6. **Stopping.** Before each item: the night's budget, the item cap, the end of
-   the scheduled hours. After each item: a usage limit, which ends the run and
+6. **Stopping.** Before each item: whether the night's budget still covers a
+   whole item at its per-item ceiling, the item cap, the end of the scheduled
+   hours. After each item: a usage limit, which ends the run and
    records the reset time. If the first two items fail for the same reason,
    the run stops rather than failing every item the same way.
 7. **Writing back.** Moves each item `ready` to `doing` before the run and to
@@ -86,9 +87,16 @@ queue), a `hooks.py`, and a `run.py` of a few lines that puts this package on
 the path and calls `runner.main(hooks, folder)`. Every command in `agent.json`
 points at `run.py`; `AGENTS/ux_agent/` is the example to copy.
 
-The queue must be a folder of documents. Its `container.path` may hold
-`<target>`, which the runner fills with the target's id, so one manifest serves
-one folder per target.
+The queue is one of two kinds.
+
+- **One the agent owns**: a folder of documents, named by `stream(target)`. Its
+  `container.path` may hold `<target>`, which the runner fills with the target's
+  id. The runner moves each item through its states on the item itself. The UX
+  agent works this way.
+- **One something else writes**: `items(target)` returns the items, and the
+  runner writes nothing back. Its ledger is the only record of what was tried.
+  `improve_agent` works this way over each repo's IMPROVEMENTS.md, and the
+  planning agent will over `todo.md`.
 
 `hooks.py` holds `ID`, `NAME` and `BLURB`, optionally `HOURS_PREFERRED` and
 `FIELDS` (extra settings, in the dashboard's field shape plus a `default`), and
@@ -97,14 +105,22 @@ these functions:
 | Hook | Answers |
 | --- | --- |
 | `targets()` | what the switches and schedules belong to: one repo, one list, one client |
-| `stream(target)` | where that target's queue is |
+| `stream(target)` | where that target's queue is, for a queue the agent owns |
+| `items(target)` | the items, for a queue something else writes: `id`, `title`, `fields`, `body`, optional `fingerprint` |
+| `before(target, todo, dry)` | optional, before the first item: `None`, a reason to leave the whole target alone, or `{"where": ...}` naming where tonight's work lands |
+| `after(target, run)` | optional, after the last item, whatever happened |
+| `failed(item, result, target)` | optional, clean up after Claude failed part way |
 | `eligible(item, target)` | `None`, or the reason this item is not run. The reason goes into the log as given |
 | `order(items, target)` | optional, the order to work in. Default is the queue's own |
 | `prompt(item, target)` | what Claude is asked |
 | `options(item, target)` | agent definition, tools, extra folders, model, per-item budget, time limit |
-| `land(item, result, target)` | writes the output where it belongs and returns what to log: a ref, a one-line summary, a detail line, and whether it needs a person |
+| `land(item, result, target)` | writes the output where it belongs and returns what to log: `label`, `summary`, `ref`, `detail`, `fields` to write on the item. `failed` (with `fix`) makes it a failure, `set_aside` sets it aside at once, `again` runs it again next time even though it did not change |
 | `explain(error, kind)` | optional, `(what happened, what fixes it)` for an error this agent knows about |
 | `problems(target)` | optional, lines the dashboard shows on the target's row |
+| `load_settings(id)`, `save_settings(id, changes)` | optional, for an agent that already keeps its settings in a file of its own |
+| `agent_budget()` | optional, a ceiling shared by all targets in one wake |
+| `card(target, card)`, `stats(targets)`, `actions()`, `action(name, target)` | optional, anything the agent adds to the dashboard |
+| `notify(target, run, text)` | optional, replaces the default desktop notification |
 
 Settings kept per target, edited only through `apply`: `on`, `hours`, `budget`
 (the night), `max_items`, and anything the agent declares in `fields`.
@@ -204,6 +220,6 @@ is in `~/Library/Logs/agents-wake.log`.
 1. ~~This file agreed.~~
 2. ~~The runner and the single wake, built here with tests.~~
 3. ~~The UX agent as the first agent on it.~~
-4. `improve_agent` moved over.
+4. ~~`improve_agent` moved over.~~
 5. The planning agent moved over last, as the largest, keeping its own briefs,
    brief-writing and reports as hooks and extra steps around the runner.

@@ -18,8 +18,13 @@ KEEP_DAYS = 30
 MAX_FAILS = 3
 
 
+def slug(target_id):
+    """A target id as one folder name. Repo names such as `AGENTS/ux_agent` hold a slash."""
+    return target_id.replace("/", "--")
+
+
 def folder(state_dir, target_id):
-    return os.path.join(state_dir, target_id, "runs")
+    return os.path.join(state_dir, slug(target_id), "runs")
 
 
 def _path(state_dir, target_id, day, ext):
@@ -193,8 +198,10 @@ def render(data, title):
             if d.get("fix"):
                 line += " %s" % d["fix"]
             fails = d.get("fails") or 1
-            if d.get("set_aside"):
+            if d.get("set_aside") and fails >= MAX_FAILS:
                 line += " Failed %d times, so it is now Blocked and waiting on you." % fails
+            elif d.get("set_aside"):
+                line += " Set aside until it changes or you look at it."
             else:
                 line += " Failed %d of %d before it is set aside." % (fails, MAX_FAILS)
             out.append(line)

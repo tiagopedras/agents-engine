@@ -43,8 +43,13 @@ def _read(state_dir):
 
 
 def load(state_dir, hooks, target_id):
+    """An agent that already keeps its settings elsewhere names `load_settings`
+    and `save_settings` in its hooks, and the runner reads and writes through them."""
     out = defaults(hooks)
-    row = _read(state_dir).get(target_id)
+    if hasattr(hooks, "load_settings"):
+        row = hooks.load_settings(target_id)
+    else:
+        row = _read(state_dir).get(target_id)
     if isinstance(row, dict):
         out.update({k: v for k, v in row.items() if k in out})
     return out
@@ -91,6 +96,8 @@ def save(state_dir, hooks, target_id, changes):
     clean, err = check(hooks, changes)
     if err:
         return err
+    if hasattr(hooks, "save_settings"):
+        return hooks.save_settings(target_id, clean)
     data = _read(state_dir)
     row = data.get(target_id) if isinstance(data.get(target_id), dict) else {}
     row.update(clean)

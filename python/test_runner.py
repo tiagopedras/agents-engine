@@ -137,10 +137,10 @@ def test_unchanged_is_skipped_and_feedback_reruns():
     core.run_target(agent, target, trigger="manual")
     item = stream.read(os.path.join(root, "queue", "alpha", "one.md"))
     stream.write(item, {"state": "ready", "owner": "test-agent"})
-    todo, left = core.select(agent, target, agent.manifest(target))
+    todo, left, _ = core.select(agent, target)
     check("moved back unchanged is skipped", [l["kind"] for l in left], ["unchanged"])
     stream.write(item, {"feedback": "look at the empty state too"})
-    todo, left = core.select(agent, target, agent.manifest(target))
+    todo, left, _ = core.select(agent, target)
     check("sent back with a reason runs again", [t["title"] for t in todo], ["one"])
     shutil.rmtree(root)
 
@@ -185,12 +185,12 @@ def test_limit_stops_and_puts_back():
 
 def test_budget_stops():
     agent, root = make_agent()
-    settings.save(agent.state_dir, agent.hooks, "alpha", {"budget": 1})
+    settings.save(agent.state_dir, agent.hooks, "alpha", {"budget": 3})
     add(root, "a.md", "one", created="2026-09-01")
     add(root, "b.md", "two", created="2026-09-02")
     run = core.run_target(agent, agent.target("alpha"), trigger="manual")
     check("stopped by budget after one", len(run["did"]), 1)
-    check("budget reason", "budget of $1.00" in (run["stopped"] or ""), True)
+    check("budget reason", "budget of $3.00 would not cover" in (run["stopped"] or ""), True)
     shutil.rmtree(root)
 
 
@@ -251,6 +251,80 @@ def test_stream_apply():
     check("feedback written", fields_of(root, "a.md").get("feedback"), "Check mobile too.")
     check("unknown state refused", runner.stream_apply(
         agent, {"item": {"group": "alpha", "name": "a.md"}, "to": "nowhere"})["ok"], False)
+    shutil.rmtree(root)
+
+
+def read_only_agent(entries, calls):
+    """An agent over a queue it does not own: items come from a hook and nothing is written back."""
+    agent, root = make_agent()
+    h = agent.hooks
+    del h.stream
+    h.items = lambda target: [{"id": e, "title": e, "fields": {}, "body": e} for e in entries]
+    h.eligible = lambda item, target: None
+
+    def before(target, todo, dry):
+        calls.append(("before", dry, len(todo)))
+        return {"where": "improve/today"}
+    h.before = before
+    h.after = lambda target, run: calls.append(("after", len(run["did"])))
+
+    def land(item, result, target):
+        if "RED" in item["body"]:
+            return {"failed": "2 of 3 tests failed", "label": "tests failed", "ref": "abc123"}
+        if "PROTECTED" in item["body"]:
+            return {"failed": "wrote into data/", "set_aside": True, "label": "refused"}
+        if "RESTART" in item["body"]:
+            return {"label": "needs a restart", "again": True}
+        return {"label": "built", "ref": "def456", "summary": "built it"}
+    h.land = land
+    agent = core.Agent(h, root)
+    return agent, root
+
+
+def test_read_only_queue():
+    calls = []
+    agent, root = read_only_agent(["good", "RED one", "PROTECTED one", "RESTART one"], calls)
+    target = agent.target("alpha")
+    run = core.run_target(agent, target, trigger="manual")
+    check("before then after", [c[0] for c in calls], ["before", "after"])
+    check("where comes from before", run["where"], "improve/today")
+    outcomes = {d["title"]: (d["outcome"], d.get("set_aside")) for d in run["did"]}
+    check("verdicts", outcomes, {"good": ("ran", None), "RED one": ("failed", False),
+                                 "PROTECTED one": ("failed", True), "RESTART one": ("ran", None)})
+    check("no files written back", sorted(os.listdir(os.path.join(root, "queue", "alpha"))), [])
+    todo, left, m = core.select(agent, target)
+    check("next time: red and restart again, good unchanged, protected set aside",
+          (sorted(t["title"] for t in todo), sorted((l["title"], l["kind"]) for l in left)),
+          (["RED one", "RESTART one"], [("PROTECTED one", "blocked"), ("good", "unchanged")]))
+    card = runner.state(agent)["targets"][0]
+    check("card counts the set-aside one as blocked", card["counts"][2]["n"], 1)
+    shutil.rmtree(root)
+
+
+def test_before_can_skip():
+    calls = []
+    agent, root = read_only_agent(["good"], calls)
+    agent.hooks.before = lambda target, todo, dry: "working tree not clean"
+    run = core.run_target(agent, agent.target("alpha"), trigger="manual")
+    check("skipped with reason", run["stopped"], "working tree not clean")
+    check("item listed as not reached", [l["why"] for l in run["left"]], ["not reached: working tree not clean"])
+    check("after not called when skipped", calls, [])
+    shutil.rmtree(root)
+
+
+def test_agent_budget_shared_across_targets():
+    agent, root = make_agent()
+    os.makedirs(os.path.join(root, "queue", "beta"))
+    agent.hooks.targets = lambda: [{"id": "alpha"}, {"id": "beta"}]
+    agent.hooks.agent_budget = lambda: 3.0
+    for t in ("alpha", "beta"):
+        settings.save(agent.state_dir, agent.hooks, t, {"on": True, "hours": [2]})
+    add(root, "a.md", "one")
+    with open(os.path.join(root, "queue", "beta", "b.md"), "w") as fh:
+        fh.write("---\nstate: ready\nangle: yes\n---\n# b\n\ntwo\n")
+    runner.wake(agent, now=dt.datetime(2026, 9, 21, 2, 15).astimezone())
+    beta = stream.read(os.path.join(root, "queue", "beta", "b.md"))["fields"]["state"]
+    check("alpha spent 1.25, so beta's $2 item does not fit in the $3 left", beta, "ready")
     shutil.rmtree(root)
 
 

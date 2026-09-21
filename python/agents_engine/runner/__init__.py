@@ -41,8 +41,13 @@ def _out(obj):
 
 
 def wake(agent, now=None):
-    """Asked every hour. Each target that names this hour and is on gets one pass."""
+    """Asked every hour. Each target that names this hour and is on gets one pass.
+
+    Targets run one after another, so an agent-wide ceiling (`agent_budget()` in
+    the hooks, when there is one) is shared across them in the order they come.
+    """
     now = now or dt.datetime.now().astimezone()
+    left = agent.call("agent_budget")
     for target in agent.targets():
         tid = target["id"]
         conf = settings.load(agent.state_dir, agent.hooks, tid)
@@ -57,7 +62,9 @@ def wake(agent, now=None):
             continue
         try:
             daylog.add_wake(agent.state_dir, tid, now, "ran", agent.title(target))
-            core.run_target(agent, target, trigger="schedule", now=now)
+            run = core.run_target(agent, target, trigger="schedule", now=now, budget_left=left)
+            if left is not None:
+                left = max(0.0, left - run["cost"])
         except Exception as exc:  # noqa: BLE001 - logged so a broken target never silences the others
             agent.log("%s: the run crashed: %s: %s" % (tid, type(exc).__name__, exc))
         finally:
@@ -73,7 +80,8 @@ def by_hand(agent, target_id=None, item=None, dry=False):
     for target in targets:
         if dry:
             plan = core.run_target(agent, target, only=item, dry=True)
-            print("%s: %d would run" % (target["id"], len(plan["would_run"])))
+            print("%s: %d would run%s" % (target["id"], len(plan["would_run"]),
+                                          (" (%s)" % plan["note"]) if plan.get("note") else ""))
             for t in plan["would_run"]:
                 print("  run   %s" % t)
             for l in plan["left"]:
@@ -118,20 +126,25 @@ def target_card(agent, target):
     groups, counts = {}, {"ready": 0, "review": 0, "blocked": 0}
     labels = {}
     try:
-        m = agent.manifest(target)
-        labels = m.get("states") or {}
-        where = stream.folder(m, agent.root, tid)
-        if not os.path.isdir(where):
-            problems.append("The queue folder %s does not exist yet." % os.path.relpath(where, agent.root))
-        todo, left = core.select(agent, target, m)
-        refused = {l["id"] or l["title"]: l["why"] for l in left if l["kind"] in ("refused", "waiting")}
-        for item in stream.items(where, m):
-            st = item["fields"].get("state", "ready")
+        todo, left, m = core.select(agent, target)
+        labels = (m or {}).get("states") or {"ready": "ready", "blocked": "set aside"}
+        if m is not None:
+            where = stream.folder(m, agent.root, tid)
+            if not os.path.isdir(where):
+                problems.append("The queue folder %s does not exist yet." % os.path.relpath(where, agent.root))
+        held = {l["id"] or l["title"]: l for l in left}
+        items, _ = agent.items(target)
+        for item in items:
+            st = (item.get("fields") or {}).get("state", "ready")
+            note = held.get(item.get("id") or item["title"])
+            if m is None and note and note["kind"] == "blocked":
+                st = "blocked"
             if st == "done":
                 continue
             if st in counts:
                 counts[st] += 1
-            why = refused.get(item["id"] or item["title"]) or item["fields"].get("feedback") or ""
+            why = (note["why"] if note and note["kind"] in ("refused", "waiting", "blocked") else "") \
+                or (item.get("fields") or {}).get("feedback") or ""
             tone = "warn" if st in ("review", "blocked") or why else ("good" if st == "ready" else None)
             groups.setdefault(st, []).append({"text": item["title"], "state": labels.get(st, st),
                                               "status": st, "tone": tone, "why": why})
@@ -153,7 +166,7 @@ def target_card(agent, target):
             tone = "bad"
 
     order = ["ready", "doing", "review", "blocked", "backlog"]
-    return {
+    card = {
         "id": tid, "name": target.get("name") or tid, "subtitle": target.get("subtitle", ""),
         "note": target.get("note", ""),
         "on": conf["on"], "switchable": True, "hours": conf["hours"],
@@ -174,12 +187,15 @@ def target_card(agent, target):
                    for f in settings.fields(agent.hooks)],
         "_tone": tone,
     }
+    # The agent may add to the card or replace parts of it: its own counts,
+    # branches, stats. Whatever it returns is the card.
+    return agent.call("card", target, card, default=card) or card
 
 
 def state(agent):
     targets = [target_card(agent, t) for t in agent.targets()]
     on = [t for t in targets if t["on"]]
-    tones = [t.pop("_tone") for t in targets]
+    tones = [t.pop("_tone", None) for t in targets]
     tone = "bad" if "bad" in tones else ("ok" if on else "warn")
     running = any(lock.holder(agent.lock_path(t["id"])) for t in targets)
     return {
@@ -188,7 +204,9 @@ def state(agent):
                                               ("%d hours set" % sum(len(t["hours"]) for t in on) if on else "off")),
         "tone": tone, "job": _job(), "running": running, "log": _tail(agent),
         "hours_preferred": getattr(agent.hooks, "HOURS_PREFERRED", None),
-        "actions": [{"id": "dry", "label": "Dry run"}, {"id": "run", "label": "Run now", "primary": True}],
+        "actions": list(agent.call("actions", default=[]) or []) + [
+            {"id": "dry", "label": "Dry run"}, {"id": "run", "label": "Run now", "primary": True}],
+        "stats": agent.call("stats", targets, default=None) or [],
         "targets": targets,
     }
 
@@ -205,7 +223,10 @@ def start(agent, req):
     action = (req or {}).get("action")
     tid = (req or {}).get("target")
     if action not in ("run", "dry"):
-        return {"ok": False, "error": "unknown action %r" % action}
+        # An agent's own action, such as looking for new repos. Answered in the
+        # foreground, since the answer is the point.
+        answer = agent.call("action", action, tid)
+        return answer if answer is not None else {"ok": False, "error": "unknown action %r" % action}
     if tid and not agent.target(tid):
         return {"ok": False, "error": "no target called %r" % tid}
     cmd = [sys.executable, agent.script, "--now"] + (["--target", tid] if tid else []) + (

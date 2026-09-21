@@ -22,8 +22,8 @@ RESET_RE = re.compile(r"resets? (?:at )?([0-9]{1,2}:[0-9]{2}\s*(?:am|pm)?)", re.
 AGENT_RE = re.compile(r"--agent '([^']+)' not found|agent '?([\w.-]+)'? (?:was )?not found", re.I)
 BUDGET_RE = re.compile(r"budget", re.I)
 
-DEFAULTS = {"agent": None, "tools": ["Read", "Grep", "Glob"], "dirs": [], "model": None,
-            "budget": 2.0, "timeout": 15 * 60, "cwd": None}
+DEFAULTS = {"agent": None, "tools": ["Read", "Grep", "Glob"], "disallowed": [], "dirs": [],
+            "model": None, "permission_mode": None, "budget": 2.0, "timeout": 15 * 60, "cwd": None}
 
 
 class Result(object):
@@ -41,8 +41,12 @@ def command(prompt, opts):
         cmd += ["--agent", opts["agent"]]
     if opts.get("model"):
         cmd += ["--model", opts["model"]]
+    if opts.get("permission_mode"):
+        cmd += ["--permission-mode", opts["permission_mode"]]
     if opts.get("tools"):
         cmd += ["--allowedTools"] + list(opts["tools"])
+    if opts.get("disallowed"):
+        cmd += ["--disallowedTools"] + list(opts["disallowed"])
     for d in opts.get("dirs") or []:
         cmd += ["--add-dir", os.path.expanduser(d)]
     return cmd
