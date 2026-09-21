@@ -164,7 +164,7 @@ Both are left out when they are true, which is the usual case.
 
 ## Keys
 
-An agent is addressed by its id, `improve-agent` or `planning-agent`, which is
+An agent is addressed by its id, `improve-agent` or `plan-agent`, which is
 the `key` on its card. When two folders claim the same id (a copied repo brings
 the copy's `agent.json` with it) the key becomes `id@folder`, and asking for
 the bare id is refused with a 409 rather than guessed at. Use `agent.key` from

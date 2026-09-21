@@ -54,7 +54,7 @@ def account_window(cards):
 
     The usage window is a property of the account rather than of any one agent,
     so one answer stands for all of them — but only from an agent that reports
-    the window and nothing else. The to-dos planning agent's copy of the arithmetic
+    the window and nothing else. The Plan agent's copy of the arithmetic
     short-circuits on its own hours before it looks at a window at all, so
     during the day it says STOP about its schedule while meaning nothing about
     the account. An agent that does that marks its answer `scope: "self"`, and

@@ -1,6 +1,6 @@
 """One `claude -p` for one item, and what its failures mean in plain words.
 
-The error readings here are the ones the to-dos planning agent learnt the hard
+The error readings here are the ones the Plan agent learnt the hard
 way. A usage limit whose wording named neither "usage" nor "at" was once read
 as an ordinary failure, and the batch went on to fail the same way twenty-four
 more times in a minute. So a limit is matched loosely, and a stray match costs

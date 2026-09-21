@@ -18,9 +18,9 @@ function fake(status, body) {
 
 let c = createClient({ base: 'http://127.0.0.1:8770/', fetch: fake(200, { ok: true }) })
 
-await c.getAgent('planning-agent@to-dos copy/agents/planning_agent')
+await c.getAgent('plan-agent@to-dos copy/agents/plan-agent')
 assert.equal(sent.at(-1).url,
-  'http://127.0.0.1:8770/agents/planning-agent%40to-dos%20copy%2Fagents%2Fplanning_agent')
+  'http://127.0.0.1:8770/agents/plan-agent%40to-dos%20copy%2Fagents%2Fplan-agent')
 
 await c.setHours('improve-agent', 'to-dos', [2, 3])
 assert.deepEqual(sent.at(-1), { url: 'http://127.0.0.1:8770/apply', method: 'POST',

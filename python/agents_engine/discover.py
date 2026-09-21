@@ -18,7 +18,7 @@ import subprocess
 
 CODE = os.path.expanduser("~/Code")
 
-# Three levels below ~/Code, which is deep enough for `to-dos/agents/planning_agent`
+# Three levels below ~/Code, which is deep enough for `to-dos/agents/plan-agent`
 # and shallow enough not to walk into anything's build output.
 MAX_DEPTH = 3
 SKIP = {"node_modules", ".git", "EXTERNAL", "TEMP", "__pycache__"}
@@ -143,8 +143,8 @@ def _key(agents, root):
     """Give every agent something unique to be addressed by.
 
     An id is an agent's own name for itself, and a copied repo brings a second
-    folder claiming the same one — `to-dos copy/agents/planning_agent` is the whole
-    of the to-dos planning agent, descriptor included. Two cards with one id means
+    folder claiming the same one — `to-dos copy/agents/plan-agent` is the whole
+    of the Plan agent, descriptor included. Two cards with one id means
     a switch on either reaches whichever the walk happened to find first, which
     is how a copy gets switched off and the original comes on instead.
 

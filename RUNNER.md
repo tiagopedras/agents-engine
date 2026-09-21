@@ -8,7 +8,7 @@ a fake agent and a fake `claude`. The UX agent is the first agent on it.
 ## Why it exists
 
 Two agents on this machine work a queue on their own overnight: the to-dos
-planning agent and `improve_agent`. Each wrote its own loop. Both have an hourly
+planning agent and `improve-agent`. Each wrote its own loop. Both have an hourly
 wake that checks a schedule, a lock that records which process holds it, a pass
 that picks what to work on and skips what has not changed, one `claude -p` per
 item with a budget and a time limit, a run record the dashboard reads, and a
@@ -16,7 +16,7 @@ item with a budget and a time limit, a run record the dashboard reads, and a
 planning agent's version alone is close to 6,000 lines, and most of what is hard
 about it (the stale lock, the usage limit that looked like an ordinary failure,
 the second run of the day that hid the first) had to be learnt there and then
-copied by hand into `improve_agent`.
+copied by hand into `improve-agent`.
 
 The UX agent is the third. Rather than a third copy, the loop moves here, and an
 agent built on it writes only what is its own: which queue, which items, what to
@@ -95,7 +95,7 @@ The queue is one of two kinds.
   agent works this way.
 - **One something else writes**: `items(target)` returns the items, and the
   runner writes nothing back. Its ledger is the only record of what was tried.
-  `improve_agent` works this way over each repo's IMPROVEMENTS.md, and the
+  `improve-agent` works this way over each repo's IMPROVEMENTS.md, and the
   planning agent will over `todo.md`.
 
 `hooks.py` holds `ID`, `NAME` and `BLURB`, optionally `HOURS_PREFERRED` and
@@ -144,7 +144,7 @@ version 1.7:
 ```
 
 An agent on the runner points it at its `run.py`. An agent not on it yet points it
-at its own entry point, which for the planning agent and `improve_agent` is the
+at its own entry point, which for the planning agent and `improve-agent` is the
 `run.sh` their own plists run today. Once an agent's `agent.json` has `wake`, its
 own plist is unloaded, and the dashboard stops showing a `job` for it. An agent
 without `wake` is not woken by this, which is how the two old plists keep working
@@ -224,7 +224,7 @@ is in `~/Library/Logs/agents-wake.log`.
 1. ~~This file agreed.~~
 2. ~~The runner and the single wake, built here with tests.~~
 3. ~~The UX agent as the first agent on it.~~
-4. ~~`improve_agent` moved over.~~
+4. ~~`improve-agent` moved over.~~
 5. ~~The planning agent moved over last.~~ Its briefings and reports run in
    `on_wake`, and every file the board reads is still written by its own
    functions, through the hooks.

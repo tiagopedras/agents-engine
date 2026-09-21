@@ -70,8 +70,8 @@ def test_discovery():
     try:
         fake_agent(root, "b-agent", "Bravo", {"targets": []})
         fake_agent(root, "a-agent", "Alpha", {"targets": []})
-        # Three levels down is reachable, which is what the to-dos planning agent
-        # needs: it lives at to-dos/agents/planning_agent.
+        # Three levels down is reachable, which is what the Plan agent
+        # needs: it lives at to-dos/agents/plan-agent.
         fake_agent(root, "deep", "Deep", {"targets": []}, at="one/two/three")
         # Four is not, and neither is anything inside the folders that are
         # always full of other people's code.
@@ -159,7 +159,7 @@ def test_strip():
 def test_window_scope():
     """A window marked `self` is not quoted for the account while another exists.
 
-    The to-dos planning agent's copy of the window arithmetic short-circuits on its
+    The Plan agent's copy of the window arithmetic short-circuits on its
     own hours, so at two in the afternoon it says STOP about a schedule while
     meaning nothing about the account. Quoting that in the strip would report
     the account as spent when it is not.
@@ -303,7 +303,7 @@ def test_activity():
 def test_duplicate_id():
     """Two folders claiming one id are two agents, and a click reaches the one clicked.
 
-    This is what a copied repo looks like: `to-dos copy/agents/planning_agent` has
+    This is what a copied repo looks like: `to-dos copy/agents/plan-agent` has
     the same descriptor as the original down to the id, so an id is no longer
     enough to say which one a switch belongs to. Every agent therefore carries a
     `key` — its id while that id is its own, and its id plus where it was found
@@ -311,21 +311,21 @@ def test_duplicate_id():
     """
     root = tempfile.mkdtemp()
     try:
-        fake_agent(root, "planning-agent", "Night", {"targets": [target()]}, at="to-dos")
-        fake_agent(root, "planning-agent", "Night", {"targets": [target()]}, at="to-dos copy")
+        fake_agent(root, "plan-agent", "Night", {"targets": [target()]}, at="to-dos")
+        fake_agent(root, "plan-agent", "Night", {"targets": [target()]}, at="to-dos copy")
         fake_agent(root, "lonely", "Lonely", {"targets": [target()]})
 
         found = discover.find(root)
         keys = sorted(a["key"] for a in found)
         check("an id claimed once is its own key", "lonely" in keys, True)
         check("a shared id is split by where it was found",
-              [k for k in keys if k.startswith("planning-agent")],
-              ["planning-agent@to-dos", "planning-agent@to-dos copy"])
+              [k for k in keys if k.startswith("plan-agent")],
+              ["plan-agent@to-dos", "plan-agent@to-dos copy"])
 
-        copy = routes.find_agent("planning-agent@to-dos copy", root)
+        copy = routes.find_agent("plan-agent@to-dos copy", root)
         check("a key reaches the folder it names",
               os.path.basename(copy["root"]), "to-dos copy")
-        original = routes.find_agent("planning-agent@to-dos", root)
+        original = routes.find_agent("plan-agent@to-dos", root)
         check("and the other key reaches the other one",
               os.path.basename(original["root"]), "to-dos")
 
@@ -334,7 +334,7 @@ def test_duplicate_id():
         check("a plain id still resolves while it is unambiguous",
               routes.find_agent("lonely", root)["id"], "lonely")
         try:
-            routes.find_agent("planning-agent", root)
+            routes.find_agent("plan-agent", root)
             check("an ambiguous id is refused", True, False)
         except discover.AgentError as exc:
             check("an ambiguous id is refused rather than guessed",
@@ -344,7 +344,7 @@ def test_duplicate_id():
         # explains itself.
         cards = {c["key"]: c for c in (discover.state(a) for a in found)}
         check("a duplicated agent names the other folder",
-              cards["planning-agent@to-dos"]["twin"],
+              cards["plan-agent@to-dos"]["twin"],
               [os.path.join(root, "to-dos copy")])
         check("and an agent on its own has no twin",
               cards["lonely"].get("twin"), None)
