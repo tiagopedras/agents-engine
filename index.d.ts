@@ -1,6 +1,7 @@
 /* The shape of what the agents dashboard server hands back. The authority is
  * CONTRACT.md in agents-dashboard, under `state`; an agent may send more than
- * is listed here. These types follow agents-dashboard/src/types.ts. */
+ * is listed here. This is the only copy: the dashboard's own page reads its
+ * types from here too. */
 
 export type Tone = 'good' | 'warn' | 'bad'
 
@@ -44,10 +45,27 @@ export interface Action {
   title?: string
 }
 
+export interface Estimate { unit?: string; low?: number; high?: number; n?: number }
+
+export interface DetailCard {
+  text: string
+  status?: string
+  state?: string
+  tone?: Tone
+  tags?: string[]
+  index?: string | number
+  why?: string
+  done?: boolean
+  estimate?: Estimate
+}
+
+export interface DetailGroup { name: string; cards: DetailCard[] }
+
 export interface Target {
   id: string
   name: string
   subtitle?: string
+  subtitle_title?: string
   note?: string
   on?: boolean
   switchable?: boolean
@@ -56,9 +74,11 @@ export interface Target {
   counts?: Count[]
   /* undefined: this target has no runs to report. null: it has had none yet. */
   last_run?: LastRun | null
+  chips?: { label: string; items: string[] }
   fields?: Field[]
   problems?: string[]
   actions?: Action[]
+  detail?: { title?: string; groups?: DetailGroup[] }
 }
 
 export interface Agent {
@@ -70,6 +90,15 @@ export interface Agent {
   tone?: string
   root?: string
   doc?: string
+  /* A reference agent whose folder is not there. */
+  missing?: boolean
+  /* The other folders claiming the same id. */
+  twin?: string[]
+  /* From references.json: no commands, nothing to run or schedule. */
+  reference?: boolean
+  kind?: string
+  cadence?: string
+  started_by?: string
   broken?: string
   running?: boolean
   job?: { loaded?: boolean; installed?: boolean }
@@ -83,12 +112,14 @@ export interface AgentView { now: string; hour: number; agent: Agent }
 
 export interface StripCell { cls?: string; k: string; v: string; w?: string }
 
+export interface Boundary { at: string; why?: string }
+
 export interface State {
-  now?: string
+  now?: string | number
   hour: number
   agents?: Agent[]
   strip?: StripCell[]
-  boundaries?: { at: string; why?: string }[]
+  boundaries?: Boundary[]
 }
 
 export interface Ok { ok: true; [k: string]: unknown }
