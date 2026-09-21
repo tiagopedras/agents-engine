@@ -1,4 +1,4 @@
-# agents_engine
+# agents-engine
 
 Everything needed to monitor the scheduled agents on this machine and change
 their schedules, without the page. The agents dashboard is one app built on it.
@@ -85,7 +85,7 @@ by path, relative to your app's own folder:
 
 ```json
 "dependencies": {
-  "@tiagopedras/agents-engine": "file:../PACKAGES/agents_engine"
+  "@tiagopedras/agents-engine": "file:../PACKAGES/agents-engine"
 }
 ```
 

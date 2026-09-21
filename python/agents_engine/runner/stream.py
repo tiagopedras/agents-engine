@@ -1,6 +1,6 @@
 """Reading and moving items in a folder-of-documents stream.
 
-The container shape is `PACKAGES/work_streams/CONTRACT.md`'s: one item per
+The container shape is `PACKAGES/work-streams/CONTRACT.md`'s: one item per
 Markdown file, fields as `key: value` frontmatter lines, the body below.
 `container.path` may hold `<target>`, which the runner fills with the target's
 id, so one manifest serves one folder per target. It is resolved from the
@@ -10,7 +10,7 @@ Frontmatter is edited one line at a time rather than through a YAML writer, the
 same as the planning agent's `stream.py`, because a parser would reflow values
 that contain a colon.
 
-Every write takes the stream's writer claim first (`work_streams/writer.py`),
+Every write takes the stream's writer claim first (`work-streams/writer.py`),
 so a move from the board and a move from a run cannot land on the same file at
 once.
 """
@@ -24,7 +24,7 @@ import string
 import sys
 
 WS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                   "..", "..", "..", "..", "work_streams"))
+                                   "..", "..", "..", "..", "work-streams"))
 if WS not in sys.path:
     sys.path.insert(0, WS)
 try:

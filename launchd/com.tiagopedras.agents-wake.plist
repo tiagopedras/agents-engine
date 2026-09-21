@@ -16,13 +16,13 @@
     <string>agents_engine.wake</string>
   </array>
   <key>WorkingDirectory</key>
-  <string>/Users/tiagopedras/Code/PACKAGES/agents_engine/python</string>
+  <string>/Users/tiagopedras/Code/PACKAGES/agents-engine/python</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
     <string>/Library/Frameworks/Python.framework/Versions/3.11/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/tiagopedras/.local/bin</string>
     <key>PYTHONPATH</key>
-    <string>/Users/tiagopedras/Code/PACKAGES/agents_engine/python</string>
+    <string>/Users/tiagopedras/Code/PACKAGES/agents-engine/python</string>
   </dict>
   <key>StartCalendarInterval</key>
   <dict>

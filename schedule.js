@@ -195,7 +195,7 @@ export function builtLastNight(run, now = Date.now()) {
 
 /* --- the status vocabulary --------------------------------------------- */
 
-/* The six states of PACKAGES/work_streams/CONTRACT.md, in the order work runs
+/* The six states of PACKAGES/work-streams/CONTRACT.md, in the order work runs
  * through them, and the label and tone to fall back to for each.
  *
  * Copied from there because a browser cannot read the Python module that owns

@@ -22,7 +22,7 @@ The UX agent is the third. Rather than a third copy, the loop moves here, and an
 agent built on it writes only what is its own: which queue, which items, what to
 ask Claude, and where the answer goes.
 
-It sits in `agents_engine` because that package already answers the dashboard's
+It sits in `agents-engine` because that package already answers the dashboard's
 questions about agents. The runner is the other side of the same contract: the
 engine already knows how to ask an agent what state it is in, and this lets the
 engine be the agent's answer as well.
@@ -31,7 +31,7 @@ engine be the agent's answer as well.
 
 | Part | Owner | Holds |
 | --- | --- | --- |
-| The queue | `PACKAGES/work_streams` | what an item is, its states, who may write it |
+| The queue | `PACKAGES/work-streams` | what an item is, its states, who may write it |
 | When things run, and whether two overlap | `agents-dashboard` | hours, switches, and the view of what collides |
 | Working through a queue | this runner | everything below |
 
@@ -47,7 +47,7 @@ both run, and the dashboard already shows that collision so it can be moved.
    dead is cleared whatever its age. A live one is left alone however old it
    looks, because a laptop shut mid-run suspends the holder rather than killing
    it. Age is only the fallback for a lock that names no process.
-3. **Reading the queue.** Through `work_streams`: items that are `ready`, owned by
+3. **Reading the queue.** Through `work-streams`: items that are `ready`, owned by
    this agent, and not marked `needs_you`.
 4. **Skipping what has not changed.** A ledger per target holds a fingerprint of
    each item as it was when last run. An item whose fingerprint matches, and
@@ -201,7 +201,7 @@ needs debugging. Nobody is expected to read it in the morning.
 ## What stays out
 
 - **Which agents may overlap.** The dashboard's call.
-- **The queue's shape.** `work_streams`.
+- **The queue's shape.** `work-streams`.
 - **Anything that has to stop and ask.** The implementing agent runs only from a
   session through `/do`, and never gets a runner.
 - **What any agent's output means.** The runner logs what `land` returns and
@@ -210,7 +210,7 @@ needs debugging. Nobody is expected to read it in the morning.
 ## Installing the wake
 
 ```bash
-ln -s ~/Code/PACKAGES/agents_engine/launchd/com.tiagopedras.agents-wake.plist \
+ln -s ~/Code/PACKAGES/agents-engine/launchd/com.tiagopedras.agents-wake.plist \
       ~/Library/LaunchAgents/com.tiagopedras.agents-wake.plist
 launchctl load ~/Library/LaunchAgents/com.tiagopedras.agents-wake.plist
 ```
