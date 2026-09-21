@@ -1,4 +1,4 @@
-/* Read an agent's status and write its schedule from any app on this machine.
+/* The client: read an agent's status and write its schedule from any app on this machine.
  *
  * Every call goes to the agents dashboard's own server, which runs the agent's
  * own commands and hands back what the agent said. This file holds no agent
