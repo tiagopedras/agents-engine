@@ -44,3 +44,17 @@ c = createClient({ fetch: async () => { throw new TypeError('fetch failed') } })
 await assert.rejects(c.getAll(), /not answering/)
 
 console.log('all checks passed')
+
+// The schedule arithmetic, the parts where a mistake reads as a true sentence.
+const s = await import('./schedule.js')
+assert.equal(s.rangeText([22, 23, 0, 1]), '22:00–01:00')
+assert.equal(s.rangeText([3, 5, 6]), '03:00 and 05:00–06:00')
+assert.equal(s.nextStart([{ hours: [3] }], 4), '03:00 tomorrow')
+assert.equal(s.nextStart([{ hours: [3] }], 1), '03:00 today')
+const load = s.loadByHour({ hour: 0, agents: [
+  { id: 'a', name: 'A', job: { loaded: true }, targets: [{ id: 't', name: 'T', on: true, hours: [2] }, { id: 'u', name: 'U', on: false, hours: [2] }] },
+  { id: 'b', name: 'B', job: { loaded: false }, targets: [{ id: 'v', name: 'V', on: true, hours: [2] }] },
+] })
+assert.deepEqual(load.who[2], ['T'])
+assert.equal(s.autonomy({ id: 'a', name: 'A', targets: [{ id: 't', name: 'T', on: false, hours: [2] }] }, 0).head, 'Nothing armed')
+console.log('schedule checks passed')

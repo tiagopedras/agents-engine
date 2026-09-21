@@ -122,6 +122,12 @@ export interface State {
   boundaries?: Boundary[]
 }
 
+/* One target with the agent it belongs to. */
+export interface Located { agent: Agent; target: Target }
+
+/* How many armed targets fall in each hour, and their names. */
+export interface Load { count: number[]; who: string[][] }
+
 export interface Ok { ok: true; [k: string]: unknown }
 
 export interface AgentsClient {

@@ -1,16 +1,34 @@
 {
-  "name": "@tiagopedras/agents-client",
+  "name": "@tiagopedras/agents-engine",
   "version": "0.1.0",
-  "description": "Read a scheduled agent's status and write its schedule from any app on this machine, through the agents dashboard's server. Vanilla JS, no build step, no dependency.",
+  "description": "Find the scheduled agents on this machine, talk to them, serve what they say over HTTP, and do the schedule arithmetic over it. Python for the server side, plain JS with types for apps. No build step, no dependency.",
   "license": "UNLICENSED",
   "type": "module",
   "main": "index.js",
   "types": "index.d.ts",
   "exports": {
-    ".": { "types": "./index.d.ts", "default": "./index.js" },
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./schedule.js": {
+      "types": "./schedule.d.ts",
+      "default": "./schedule.js"
+    },
     "./package.json": "./package.json"
   },
-  "files": ["index.js", "index.d.ts", "README.md"],
-  "scripts": { "test": "node test.mjs" },
-  "engines": { "node": ">=18" }
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "schedule.js",
+    "schedule.d.ts",
+    "python",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node test.mjs && python3 python/test_engine.py"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }
