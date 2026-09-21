@@ -11,6 +11,7 @@ It comes in three parts, and an app takes the ones it needs:
 | --- | --- | --- |
 | `python/agents_engine/discover.py` | Python | Finds every agent (a folder under `~/Code` with an `agent.json`) and runs its own commands: `state`, `apply`, `run`, `activity` |
 | `python/agents_engine/routes.py` | Python | The HTTP routes over that: `/state.json`, `/agents/<key>`, `/apply`, `/run`, and the rule on which pages may call in |
+| `python/agents_engine/runner/` + `wake.py` | Python | The runner: works through an agent's queue unattended, and one hourly wake for every agent. An agent writes only its hooks. `RUNNER.md` is the guide |
 | `index.js` + `schedule.js` | JavaScript, with types | A client for those routes, and the arithmetic over what comes back: what runs at each hour, what collides, when the next run is, how a run reads in words |
 
 The agent's own config stays the only place its schedule is kept. Nothing here

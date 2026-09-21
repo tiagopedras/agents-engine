@@ -23,10 +23,12 @@
     "schedule.js",
     "schedule.d.ts",
     "python",
+    "launchd",
+    "RUNNER.md",
     "README.md"
   ],
   "scripts": {
-    "test": "node test.mjs && python3 python/test_engine.py"
+    "test": "node test.mjs && python3 python/test_engine.py && python3 python/test_runner.py"
   },
   "engines": {
     "node": ">=18"
