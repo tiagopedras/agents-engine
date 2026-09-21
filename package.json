@@ -1,0 +1,16 @@
+{
+  "name": "@tiagopedras/agents-client",
+  "version": "0.1.0",
+  "description": "Read a scheduled agent's status and write its schedule from any app on this machine, through the agents dashboard's server. Vanilla JS, no build step, no dependency.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": { "types": "./index.d.ts", "default": "./index.js" },
+    "./package.json": "./package.json"
+  },
+  "files": ["index.js", "index.d.ts", "README.md"],
+  "scripts": { "test": "node test.mjs" },
+  "engines": { "node": ">=18" }
+}
