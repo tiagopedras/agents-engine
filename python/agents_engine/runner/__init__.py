@@ -62,6 +62,9 @@ def wake(agent, now=None):
             continue
         try:
             daylog.add_wake(agent.state_dir, tid, now, "ran", agent.title(target))
+            # Once per scheduled pass, whether or not anything is due: work the
+            # agent does on its own clock, such as the planning agent's briefings.
+            agent.call("on_wake", target)
             run = core.run_target(agent, target, trigger="schedule", now=now, budget_left=left)
             if left is not None:
                 left = max(0.0, left - run["cost"])

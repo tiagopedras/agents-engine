@@ -109,12 +109,16 @@ these functions:
 | `items(target)` | the items, for a queue something else writes: `id`, `title`, `fields`, `body`, optional `fingerprint` |
 | `before(target, todo, dry)` | optional, before the first item: `None`, a reason to leave the whole target alone, or `{"where": ...}` naming where tonight's work lands |
 | `after(target, run)` | optional, after the last item, whatever happened |
-| `failed(item, result, target)` | optional, clean up after Claude failed part way |
-| `eligible(item, target)` | `None`, or the reason this item is not run. The reason goes into the log as given |
+| `failed(item, result, target)` | optional, called for every Claude error (usage limit included): clean up, or record it |
+| `on_wake(target)` | optional, once per scheduled wake of a switched-on target, whether or not anything is due |
+| `starting(item, target, opts)` | optional, just before one item runs |
+| `should_stop(target, run)` | optional, before each item: a reason to stop the run, or `None` |
+| `lock_path(target_id)` | optional, when something else already checks the lock at a path of its own |
+| `eligible(item, target)` | `None`, or the reason this item is not run, as given in the log. `{"why": ..., "kind": "unchanged"}` folds it into the log's one line of unchanged items |
 | `order(items, target)` | optional, the order to work in. Default is the queue's own |
 | `prompt(item, target)` | what Claude is asked |
 | `options(item, target)` | agent definition, tools, extra folders, model, per-item budget, time limit |
-| `land(item, result, target)` | writes the output where it belongs and returns what to log: `label`, `summary`, `ref`, `detail`, `fields` to write on the item. `failed` (with `fix`) makes it a failure, `set_aside` sets it aside at once, `again` runs it again next time even though it did not change |
+| `land(item, result, target)` | writes the output where it belongs and returns what to log: `label`, `summary`, `ref`, `detail`, `fields` to write on the item. `failed` (with `fix`) makes it a failure, `set_aside` sets it aside at once, `again` runs it again next time even though it did not change, `stop` ends the run after it |
 | `explain(error, kind)` | optional, `(what happened, what fixes it)` for an error this agent knows about |
 | `problems(target)` | optional, lines the dashboard shows on the target's row |
 | `load_settings(id)`, `save_settings(id, changes)` | optional, for an agent that already keeps its settings in a file of its own |
@@ -221,5 +225,6 @@ is in `~/Library/Logs/agents-wake.log`.
 2. ~~The runner and the single wake, built here with tests.~~
 3. ~~The UX agent as the first agent on it.~~
 4. ~~`improve_agent` moved over.~~
-5. The planning agent moved over last, as the largest, keeping its own briefs,
-   brief-writing and reports as hooks and extra steps around the runner.
+5. ~~The planning agent moved over last.~~ Its briefings and reports run in
+   `on_wake`, and every file the board reads is still written by its own
+   functions, through the hooks.

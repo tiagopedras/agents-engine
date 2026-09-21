@@ -308,7 +308,7 @@ def test_before_can_skip():
     run = core.run_target(agent, agent.target("alpha"), trigger="manual")
     check("skipped with reason", run["stopped"], "working tree not clean")
     check("item listed as not reached", [l["why"] for l in run["left"]], ["not reached: working tree not clean"])
-    check("after not called when skipped", calls, [])
+    check("after still called when skipped", [c[0] for c in calls], ["after"])
     shutil.rmtree(root)
 
 

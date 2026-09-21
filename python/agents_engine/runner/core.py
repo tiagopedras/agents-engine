@@ -61,6 +61,9 @@ class Agent(object):
         return os.path.join(self.state_dir, daylog.slug(target_id))
 
     def lock_path(self, target_id):
+        """The agent may name its own, when something else already checks a lock by path."""
+        if hasattr(self.hooks, "lock_path"):
+            return self.hooks.lock_path(target_id)
         return os.path.join(self.target_dir(target_id), ".lock")
 
     def ledger_path(self, target_id):
@@ -109,8 +112,13 @@ def fingerprint(item):
 
 
 def select(agent, target, only=None, use_ledger=True):
-    """(to_run, left, manifest): what this pass would work, and what it passes over with why."""
-    items, m = agent.items(target)
+    """(to_run, left, manifest): what this pass would work, and what it passes over with why.
+
+    `only` is also handed to an agent that supplies its own items, as
+    target["only"], since a queue it does not own may need asking differently
+    for one item by hand (the planning agent ignores its ledger for one).
+    """
+    items, m = agent.items(dict(target, only=only) if only else target)
     ledger = agent.load_ledger(target["id"]) if use_ledger else {}
     todo, left = [], []
     for item in items:
@@ -127,7 +135,12 @@ def select(agent, target, only=None, use_ledger=True):
             continue
         why = agent.call("eligible", item, target)
         if why:
-            left.append(dict(entry, kind="refused", why=why))
+            # A reason, or {"why": ..., "kind": "unchanged"} to have it folded
+            # into the log's one line of unchanged items.
+            if isinstance(why, dict):
+                left.append(dict(entry, kind=why.get("kind") or "refused", why=why.get("why") or ""))
+            else:
+                left.append(dict(entry, kind="refused", why=why))
             continue
         row = ledger.get(item.get("id")) or {}
         same = row.get("fingerprint") == fingerprint(item)
@@ -227,6 +240,8 @@ def run_target(agent, target, trigger="schedule", only=None, dry=False, now=None
                 stop = "the night's budget of $%.2f would not cover another item" % budget
             elif trigger == "schedule" and at.hour not in conf["hours"]:
                 stop = "the scheduled hours ended"
+            else:
+                stop = agent.call("should_stop", target, run)
             if stop:
                 run["stopped"] = stop
                 run["left"] += _left(todo[n:], stop)
@@ -241,6 +256,7 @@ def run_target(agent, target, trigger="schedule", only=None, dry=False, now=None
                 continue
 
             agent.log("  > %s" % item["title"])
+            agent.call("starting", item, target, opts)
             began = _now()
             res = claude.run(agent.hooks.prompt(item, target), opts)
             run["cost"] += res.cost
@@ -251,8 +267,8 @@ def run_target(agent, target, trigger="schedule", only=None, dry=False, now=None
                     landed = agent.hooks.land(item, res.as_dict(), target) or {}
                 except Exception as exc:  # noqa: BLE001 - a hook's bug is one failed item, not a dead run
                     res.error, res.kind = "%s: %s" % (type(exc).__name__, exc), "land"
-            elif res.kind != "limit":
-                agent.call("failed", item, res.as_dict(), target)
+            else:
+                agent.call("failed", item, dict(res.as_dict(), error=res.error, kind=res.kind), target)
 
             iid = item.get("id") or item["title"]
             row = ledger.get(iid) or {}
@@ -295,6 +311,11 @@ def run_target(agent, target, trigger="schedule", only=None, dry=False, now=None
                                        fails=fails, set_aside=set_aside, kind=res.kind or "verdict",
                                        ref=(landed or {}).get("ref"), detail=(landed or {}).get("detail")))
                 agent.log("  failed %s · %s" % (item["title"], why))
+                if (landed or {}).get("stop"):
+                    run["stopped"] = landed["stop"]
+                    run["left"] += _left(todo[n + 1:], landed["stop"])
+                    agent.log("stopped %s: %s" % (tid, run["stopped"]))
+                    break
                 attempts.append((False, res.kind if res.kind not in (None, "other") else why))
                 if len(attempts) == 2 and not attempts[0][0] and attempts[0][1] == attempts[1][1]:
                     run["stopped"] = "the first two items failed the same way (%s)" % why
@@ -321,11 +342,12 @@ def run_target(agent, target, trigger="schedule", only=None, dry=False, now=None
             agent.log("  ran %s · $%.2f" % (item["title"], res.cost))
             attempts.append((True, None))
     finally:
-        if prep is not None and not prep.get("skip"):
-            try:
-                agent.call("after", target, run)
-            except Exception as exc:  # noqa: BLE001 - logged; the run record still gets written
-                agent.log("%s: after() failed: %s: %s" % (tid, type(exc).__name__, exc))
+        # Always, even when nothing ran or before() refused: an agent that keeps
+        # its own records (the planning agent's index and run.json) writes them here.
+        try:
+            agent.call("after", target, run)
+        except Exception as exc:  # noqa: BLE001 - logged; the run record still gets written
+            agent.log("%s: after() failed: %s: %s" % (tid, type(exc).__name__, exc))
 
     run["finished"] = _now().isoformat(timespec="seconds")
     run["cost"] = round(run["cost"], 4)
