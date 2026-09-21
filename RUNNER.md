@@ -85,7 +85,7 @@ both run, and the dashboard already shows that collision so it can be moved.
 A folder with an `agent.json` (the dashboard contract), a `stream.json` (the
 queue), a `hooks.py`, and a `run.py` of a few lines that puts this package on
 the path and calls `runner.main(hooks, folder)`. Every command in `agent.json`
-points at `run.py`; `AGENTS/ux_agent/` is the example to copy.
+points at `run.py`; `AGENTS/ux-agent/` is the example to copy.
 
 The queue is one of two kinds.
 

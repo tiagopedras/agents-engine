@@ -366,12 +366,12 @@ def test_reference_agents():
     root = tempfile.mkdtemp()
     refs = os.path.join(root, "references.json")
     try:
-        os.makedirs(os.path.join(root, "AGENTS", "ux_agent"))
+        os.makedirs(os.path.join(root, "AGENTS", "ux-agent"))
         os.makedirs(os.path.join(root, "AGENTS", "hand_run"))
         os.makedirs(os.path.join(root, "AGENTS", "grown_agent"))
         with open(refs, "w", encoding="utf-8") as fh:
             json.dump({"references": [
-                {"path": "AGENTS/ux_agent", "name": "UX agent",
+                {"path": "AGENTS/ux-agent", "name": "UX agent",
                  "blurb": "reviews journeys", "cadence": "on demand", "doc": "PLAN.md"},
                 {"path": "AGENTS/hand_run", "kind": "built", "name": "Hand run agent",
                  "started_by": "the /do skill", "cadence": "on demand"},
@@ -432,7 +432,7 @@ def test_reference_agents():
         # of everything the walk cannot find.
         legacy = os.path.join(root, "legacy.json")
         with open(legacy, "w", encoding="utf-8") as fh:
-            json.dump({"planned": [{"path": "AGENTS/ux_agent", "name": "UX agent"}]}, fh)
+            json.dump({"planned": [{"path": "AGENTS/ux-agent", "name": "UX agent"}]}, fh)
         check("the old `planned` key is still read",
               [a["name"] for a in discover.references(root, legacy)], ["UX agent"])
 

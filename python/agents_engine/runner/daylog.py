@@ -19,7 +19,7 @@ MAX_FAILS = 3
 
 
 def slug(target_id):
-    """A target id as one folder name. Repo names such as `AGENTS/ux_agent` hold a slash."""
+    """A target id as one folder name. Repo names such as `AGENTS/ux-agent` hold a slash."""
     return target_id.replace("/", "--")
 
 
