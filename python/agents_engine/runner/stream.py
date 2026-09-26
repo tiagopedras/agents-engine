@@ -168,6 +168,39 @@ def write(item, changes, lock=None, who="the runner"):
     return item
 
 
+def _slug(title):
+    return re.sub(r"[^a-z0-9]+", "-", (title or "").lower()).strip("-")[:50] or "item"
+
+
+def create(m, root, target_id, title, fields, body, owner, lock=None, who="the runner"):
+    """A new item, `ready` and owned by `owner`, in the target's folder. Returns its path."""
+    where = folder(m, root, target_id)
+    os.makedirs(where, exist_ok=True)
+    base = _slug(title)
+    name, n = base + ".md", 2
+    while os.path.exists(os.path.join(where, name)):
+        name, n = "%s-%d.md" % (base, n), n + 1
+    lines = ["state: ready", "owner: %s" % owner, "id: %s" % _mint()]
+    for key, value in (fields or {}).items():
+        if key in MOVES or value in (None, ""):
+            continue
+        lines.append("%s: %s" % (key, " ".join(str(value).split())))
+    text = "---\n%s\n---\n# %s\n\n%s\n" % ("\n".join(lines), " ".join(title.split()), (body or "").strip())
+    if lock and ws_writer is not None:
+        refused = ws_writer.refusal(lock, who)
+        if refused:
+            raise QueueError(refused)
+        ws_writer.claim(lock, who)
+    try:
+        path = os.path.join(where, name)
+        with open(path, "x", encoding="utf-8") as fh:
+            fh.write(text)
+    finally:
+        if lock and ws_writer is not None:
+            ws_writer.release(lock)
+    return path
+
+
 def apply(m, root, req, who):
     """The stream's `subprocess` writer: one transition from stdin, per the contract."""
     target = (req.get("item") or {}).get("group") or req.get("target") or ""

@@ -19,9 +19,11 @@ import types
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ["AGENTS_RUNNER_QUIET"] = "1"
+FENCES_DIR = tempfile.mkdtemp(prefix="fences-test-")
+os.environ["AGENTS_FENCES"] = os.path.join(FENCES_DIR, "fences.json")
 
 from agents_engine import runner  # noqa: E402
-from agents_engine.runner import core, daylog, lock, settings, stream  # noqa: E402
+from agents_engine.runner import core, daylog, fences, lock, settings, stream  # noqa: E402
 
 FAILED = []
 
@@ -325,6 +327,61 @@ def test_agent_budget_shared_across_targets():
     runner.wake(agent, now=dt.datetime(2026, 9, 21, 2, 15).astimezone())
     beta = stream.read(os.path.join(root, "queue", "beta", "b.md"))["fields"]["state"]
     check("alpha spent 1.25, so beta's $2 item does not fit in the $3 left", beta, "ready")
+    shutil.rmtree(root)
+
+
+def set_fences(**f):
+    with open(os.environ["AGENTS_FENCES"], "w") as fh:
+        json.dump(f, fh)
+    shutil.rmtree(os.path.join(FENCES_DIR, "spend"), ignore_errors=True)
+
+
+def test_fences_manual_runs_count_towards_the_day():
+    agent, root = make_agent()
+    add(root, "a.md", "one")
+    set_fences(daily_budget=0.5)
+    core.run_target(agent, agent.target("alpha"), trigger="manual")
+    check("by hand it runs past the ceiling", fields_of(root, "a.md").get("state"), "review")
+    check("and its spend counts", round(fences.spent(dt.date.today()), 2), 1.25)
+    set_fences()
+    shutil.rmtree(root)
+
+
+def test_fences_daily_ceiling_across_agents():
+    set_fences(daily_budget=3.0)
+    other, oroot = make_agent()
+    add(oroot, "x.md", "elsewhere")
+    core.run_target(other, other.target("alpha"), trigger="manual")
+    agent, root = make_agent()
+    add(root, "a.md", "one", created="2026-09-01")
+    add(root, "b.md", "two", created="2026-09-02")
+    settings.save(agent.state_dir, agent.hooks, "alpha", {"on": True, "hours": list(range(24))})
+    run = core.run_target(agent, agent.target("alpha"), trigger="schedule",
+                          now=dt.datetime.now().astimezone())
+    check("the other agent's spend left room for none", len(run["did"]), 0)
+    check("ceiling reason", "daily ceiling of $3.00" in (run["stopped"] or ""), True)
+    set_fences()
+    shutil.rmtree(root)
+    shutil.rmtree(oroot)
+
+
+def test_enqueue():
+    agent, root = make_agent()
+    out = runner.enqueue(agent, {"title": "Check the  plans page", "fields": {"angle": "is it clear"},
+                                 "body": "look at mobile"})
+    check("enqueue ok", out["ok"], True)
+    check("the only target is assumed", out["target"], "alpha")
+    item = stream.read(os.path.join(root, out["path"]))
+    check("queued ready and owned", (item["fields"]["state"], item["fields"]["owner"]), ("ready", "test-agent"))
+    check("title and body kept", (item["title"], item["body"].strip().endswith("look at mobile")),
+          ("Check the plans page", True))
+    check("no warning when eligible", out["warning"], None)
+    again = runner.enqueue(agent, {"title": "Check the plans page"})
+    check("same title gets its own file", again["path"].endswith("check-the-plans-page-2.md"), True)
+    check("an ineligible request says why", again["warning"], "no angle given")
+    check("a title is required", runner.enqueue(agent, {"title": " "})["ok"], False)
+    run = core.run_target(agent, agent.target("alpha"), trigger="manual", only=out["id"])
+    check("--now on its id runs just that one", [d["title"] for d in run["did"]], ["Check the plans page"])
     shutil.rmtree(root)
 
 

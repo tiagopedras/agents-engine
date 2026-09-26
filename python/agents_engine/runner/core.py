@@ -18,7 +18,7 @@ import json
 import os
 import subprocess
 
-from . import claude, daylog, settings, stream
+from . import claude, daylog, fences, settings, stream
 
 MAX_FAILS = daylog.MAX_FAILS
 
@@ -240,6 +240,8 @@ def run_target(agent, target, trigger="schedule", only=None, dry=False, now=None
                 stop = "the night's budget of $%.2f would not cover another item" % budget
             elif trigger == "schedule" and at.hour not in conf["hours"]:
                 stop = "the scheduled hours ended"
+            elif trigger == "schedule" and fences.stop_before(at, opts["budget"]):
+                stop = fences.stop_before(at, opts["budget"])
             else:
                 stop = agent.call("should_stop", target, run)
             if stop:
@@ -260,6 +262,7 @@ def run_target(agent, target, trigger="schedule", only=None, dry=False, now=None
             began = _now()
             res = claude.run(agent.hooks.prompt(item, target), opts)
             run["cost"] += res.cost
+            fences.record(agent.id, tid, item["title"], res.cost, _now())
 
             landed = None
             if not res.error:

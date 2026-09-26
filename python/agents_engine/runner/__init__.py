@@ -10,6 +10,7 @@ point at that file:
     python3 run.py --run             one action on stdin, started detached
     python3 run.py --activity        what happened since an instant on stdin
     python3 run.py --stream-apply    the queue's writer, one transition on stdin
+    python3 run.py --enqueue         one request on stdin: {target, title, fields, body} or {target, item}
     python3 run.py --now [--target T] [--item X] [--dry-run]
                                      a pass by hand, in the foreground
 """
@@ -21,7 +22,7 @@ import os
 import subprocess
 import sys
 
-from . import core, daylog, lock, settings, stream
+from . import core, daylog, fences, lock, settings, stream
 from .core import Agent
 
 WAKE_LABEL = "com.tiagopedras.agents-wake"
@@ -48,6 +49,7 @@ def wake(agent, now=None):
     """
     now = now or dt.datetime.now().astimezone()
     left = agent.call("agent_budget")
+    fences.prune(now.date())
     for target in agent.targets():
         tid = target["id"]
         conf = settings.load(agent.state_dir, agent.hooks, tid)
@@ -232,8 +234,9 @@ def start(agent, req):
         return answer if answer is not None else {"ok": False, "error": "unknown action %r" % action}
     if tid and not agent.target(tid):
         return {"ok": False, "error": "no target called %r" % tid}
+    item = (req or {}).get("item")
     cmd = [sys.executable, agent.script, "--now"] + (["--target", tid] if tid else []) + (
-        ["--dry-run"] if action == "dry" else [])
+        ["--item", item] if item else []) + (["--dry-run"] if action == "dry" else [])
     os.makedirs(agent.state_dir, exist_ok=True)
     log = open(os.path.join(agent.state_dir, "runner.log"), "a", encoding="utf-8")
     subprocess.Popen(cmd, cwd=agent.root, stdout=log, stderr=log, stdin=subprocess.DEVNULL,
@@ -287,9 +290,44 @@ def stream_apply(agent, req):
     return stream.apply(m, agent.root, dict(req, target=target["id"]), agent.name)
 
 
+def enqueue(agent, req):
+    """Put one request on an agent's queue. Nothing runs until the queue is worked.
+
+    An agent that owns its queue gets a new item, `ready` and its own. An agent
+    that only reads a queue something else writes answers through its own
+    `enqueue(target, req)` hook, or says where requests for it go instead
+    (`QUEUE_HINT`), such as the board for the planning agent.
+    """
+    if not agent.owns_queue and not hasattr(agent.hooks, "enqueue"):
+        return {"ok": False, "error": getattr(agent.hooks, "QUEUE_HINT", None)
+                or "%s takes no requests from here" % agent.name}
+    targets = agent.targets()
+    tid = req.get("target")
+    if not tid and len(targets) == 1:
+        tid = targets[0]["id"]
+    target = agent.target(tid) if tid else None
+    if not target:
+        return {"ok": False, "error": "name a target: %s" % ", ".join(t["id"] for t in targets)}
+    if not agent.owns_queue:
+        return agent.hooks.enqueue(target, req)
+    title = " ".join((req.get("title") or "").split())
+    if not title:
+        return {"ok": False, "error": "a request needs a title"}
+    m = agent.manifest(target)
+    try:
+        path = stream.create(m, agent.root, target["id"], title, req.get("fields") or {}, req.get("body") or "",
+                             agent.id, stream.lock_path(m, agent.root), "enqueue")
+    except (stream.QueueError, OSError) as exc:
+        return {"ok": False, "error": str(exc)}
+    item = stream.read(path)
+    why = agent.call("eligible", item, target)
+    return {"ok": True, "target": target["id"], "path": os.path.relpath(path, agent.root),
+            "id": item["fields"].get("id"), "warning": why}
+
+
 def main(hooks, root, argv=None):
     ap = argparse.ArgumentParser(prog="run.py")
-    for flag in ("--wake", "--state", "--apply", "--run", "--activity", "--stream-apply", "--now"):
+    for flag in ("--wake", "--state", "--apply", "--run", "--activity", "--stream-apply", "--enqueue", "--now"):
         ap.add_argument(flag, action="store_true")
     ap.add_argument("--target")
     ap.add_argument("--item")
@@ -314,5 +352,7 @@ def main(hooks, root, argv=None):
         return _out(activity(agent, req))
     if args.stream_apply:
         return _out(stream_apply(agent, req))
+    if args.enqueue:
+        return _out(enqueue(agent, req))
     ap.print_help()
     return 2

@@ -125,9 +125,34 @@ these functions:
 | `agent_budget()` | optional, a ceiling shared by all targets in one wake |
 | `card(target, card)`, `stats(targets)`, `actions()`, `action(name, target)` | optional, anything the agent adds to the dashboard |
 | `notify(target, run, text)` | optional, replaces the default desktop notification |
+| `enqueue(target, req)` | for a queue something else writes: mark one existing item as asked for. Without it, `QUEUE_HINT` says where requests go instead |
 
 Settings kept per target, edited only through `apply`: `on`, `hours`, `budget`
 (the night), `max_items`, and anything the agent declares in `fields`.
+
+## Requests and fences
+
+Every agent works a queue, and nothing outside it reaches a run. An agent that
+owns its queue (the UX agent) takes a new item through `enqueue`. One that reads
+someone else's list says where requests go instead, in `QUEUE_HINT`: the planning
+agent's queue is the tasks handed to it on the board, and the improve-agent's is
+every open `IMPROVEMENTS.md` entry that does not need him. An agent that reads a
+list and wants requests marked on it can name an `enqueue(target, req)` hook.
+
+    python3 -m agents_engine.enqueue                          who takes requests
+    python3 -m agents_engine.enqueue ux-agent --target tiago --title "..." --field angle=...
+    ... --now                                                  and run that one straight away
+
+`--now` is the on-demand path. It goes through the same lock, budget and daily
+log as a scheduled pass, and ignores the hours.
+
+Scheduled passes also sit under one ceiling for the whole machine, written in
+`~/Code/AGENTS/fences.json` (`runner/fences.py`): a daily spend across every
+agent. Each item's cost is appended to `AGENTS/spend/<date>.jsonl`, whatever
+started it, and a scheduled pass stops before an item the day's remainder would
+not cover. Agents run in parallel, so the day can overshoot by one item per agent
+running at that moment. A run by hand is never stopped by it, and its spend still
+counts. When each agent runs is its own hours, set on the dashboard.
 
 ## The single wake
 
