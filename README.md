@@ -12,6 +12,7 @@ It comes in three parts, and an app takes the ones it needs:
 | `python/agents_engine/discover.py` | Python | Finds every agent (a folder under `~/Code` with an `agent.json`) and runs its own commands: `state`, `apply`, `run`, `activity` |
 | `python/agents_engine/routes.py` | Python | The HTTP routes over that: `/state.json`, `/agents/<key>`, `/apply`, `/run`, and the rule on which pages may call in |
 | `python/agents_engine/runner/` + `wake.py` | Python | The runner: works through an agent's queue unattended, and one hourly wake for every agent. An agent writes only its hooks. `RUNNER.md` is the guide |
+| `react/` | TSX source on Tenon | The agents page itself, `AgentsApp`: cards and list views, the hour track, the ruler, the sheets. The agents dashboard and the to-dos board's Agents tab both mount it |
 | `index.js` + `schedule.js` | JavaScript, with types | A client for those routes, and the arithmetic over what comes back: what runs at each hour, what collides, when the next run is, how a run reads in words |
 
 The agent's own config stays the only place its schedule is kept. Nothing here
@@ -19,6 +20,31 @@ opens an agent's files: it runs the agent's own commands and passes the answer
 on, so a second app can never become a second writer for a schedule.
 `CONTRACT.md` in `agents-dashboard` is the shape of what an agent prints and
 accepts.
+
+## The page, as a component
+
+`react/` is the page the agents dashboard draws, and since 26 Sep 2026 the
+dashboard is just this component and a body. The to-dos board mounts the same
+thing as its Agents tab, so a change to the hour track lands in both.
+
+```tsx
+import { AgentsApp } from '@tiagopedras/agents-engine/react'
+
+<AgentsApp base="/agents-api" title="Agents" storagePrefix="board-agents." embedded />
+```
+
+`base` is where the routes are answered, `storagePrefix` keeps one app's
+remembered view, order and hidden rows apart from another's on the same
+origin, and `embedded` keeps the first-load cover inside the component rather
+than over the window.
+
+It is source, not built, and this folder has no `node_modules`, so the app
+compiling it has to supply React and Tenon: `resolve.dedupe: ['react',
+'react-dom', '@tiagopedras/tenon']` in its Vite config, and `paths` for the same
+three in its tsconfig. `agents-dashboard` and `to-dos` both show how. Every
+style in `react/agents.css` sits under `.agents-ui`, so it can load beside
+another app's stylesheet; the class names it shares with the board were renamed
+where the board's rules would have reached in.
 
 ## Two ways to build an app on it
 

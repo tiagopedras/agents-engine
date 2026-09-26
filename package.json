@@ -1,7 +1,7 @@
 {
   "name": "@tiagopedras/agents-engine",
   "version": "0.1.0",
-  "description": "Find the scheduled agents on this machine, talk to them, serve what they say over HTTP, and do the schedule arithmetic over it. Python for the server side, plain JS with types for apps. No build step, no dependency.",
+  "description": "Find the scheduled agents on this machine, talk to them, serve what they say over HTTP, and do the schedule arithmetic over it. Python for the server side, plain JS with types for apps. No build step, no dependency. react/ is the agents page as TSX source on Tenon, compiled by the app that imports it.",
   "license": "UNLICENSED",
   "type": "module",
   "main": "index.js",
@@ -15,13 +15,18 @@
       "types": "./schedule.d.ts",
       "default": "./schedule.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./react": {
+      "types": "./react/index.ts",
+      "default": "./react/index.ts"
+    }
   },
   "files": [
     "index.js",
     "index.d.ts",
     "schedule.js",
     "schedule.d.ts",
+    "react",
     "python",
     "launchd",
     "RUNNER.md",

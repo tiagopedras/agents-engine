@@ -159,6 +159,34 @@ def find_agent(agent_key, root=None):
     return claimants[0] if claimants else None
 
 
+def post_view(route, body, root=None):
+    """A POST to /apply or /run, answered as (status, JSON) for any server.
+
+    The handler below uses it, and so does a server that mounts the routes under
+    a prefix of its own rather than subclassing the handler — the to-dos board
+    answers them at /agents-api. The origin check is the caller's, and has to
+    happen before this is reached: see `do_POST`.
+    """
+    try:
+        agent = find_agent(body.get("agent", ""), root)
+    except discover.AgentError as exc:
+        return 409, {"error": str(exc)}
+    if not agent:
+        return 404, {"error": "no agent %r" % body.get("agent")}
+    try:
+        if route == "/apply":
+            out = discover.apply(agent, body.get("target"), body.get("changes") or {})
+        elif route == "/run":
+            out = discover.start(agent, body.get("action"), body.get("target"))
+        else:
+            return 404, {"error": "no route %s" % route}
+    except discover.AgentError as exc:
+        return 502, {"error": str(exc)}
+    if out.get("ok") is False:
+        return 400, {"error": out.get("error") or "refused"}
+    return 200, out
+
+
 
 # --------------------------------------------------------------------------
 # serving it
@@ -257,27 +285,7 @@ class ApiHandler(BaseHTTPRequestHandler):
         # stop it reading the answer and not stop the agent starting.
         if not origin_allowed(self.headers.get("Origin")):
             return self._send(403, {"error": "origin not allowed"})
-        body = self._body()
-        try:
-            agent = find_agent(body.get("agent", ""), self.root)
-        except discover.AgentError as exc:
-            return self._send(409, {"error": str(exc)})
-        if not agent:
-            return self._send(404, {"error": "no agent %r" % body.get("agent")})
-
-        try:
-            if route == "/apply":
-                out = discover.apply(agent, body.get("target"), body.get("changes") or {})
-            elif route == "/run":
-                out = discover.start(agent, body.get("action"), body.get("target"))
-            else:
-                return self._send(404, {"error": "no route %s" % route})
-        except discover.AgentError as exc:
-            return self._send(502, {"error": str(exc)})
-
-        if out.get("ok") is False:
-            return self._send(400, {"error": out.get("error") or "refused"})
-        return self._send(200, out)
+        return self._send(*post_view(route, self._body(), self.root))
 
 
 def serve(port, handler=ApiHandler):
