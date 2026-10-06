@@ -36,7 +36,7 @@ export function ActionButton({ action, agentKey, targetId, size = 'md' }: {
       size={size}
       title={action.title || ''}
       disabled={working}
-      endIcon={working ? <Spinner size="sm" label="Working" /> : undefined}
+      endIcon={working ? <Spinner size="sm" label="Working" style={{ color: 'inherit' }} /> : undefined}
       onClick={click}
     >
       {action.label}
