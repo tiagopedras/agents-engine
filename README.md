@@ -9,7 +9,7 @@ It comes in three parts, and an app takes the ones it needs:
 
 | Part | Language | What it does |
 | --- | --- | --- |
-| `python/agents_engine/discover.py` | Python | Finds every agent (a folder under the agents root with an `agent.json`) and runs its own commands: `state`, `apply`, `run`, `activity` |
+| `python/agents_engine/discover.py` | Python | Finds every agent (a folder under `~/Code` with an `agent.json`) and runs its own commands: `state`, `apply`, `run`, `activity` |
 | `python/agents_engine/routes.py` | Python | The HTTP routes over that: `/state.json`, `/agents/<key>`, `/apply`, `/run`, and the rule on which pages may call in |
 | `python/agents_engine/runner/` + `wake.py` | Python | The runner: works through an agent's queue unattended, and one hourly wake for every agent. An agent writes only its hooks. `RUNNER.md` is the guide |
 | `react/` | TSX source on Tenon | The agents page itself, `AgentsApp`: cards and list views, the hour track, the ruler, the sheets. The agents dashboard and the to-dos board's Agents tab both mount it |
@@ -106,27 +106,12 @@ routes send, for a server that wants to shape its own.
 
 ### Where agents are looked for
 
-Agents are found by walking one folder, three levels deep, and that folder is
-`~/Code` unless something says otherwise. A host that keeps its projects
-somewhere else names the folder once, before it serves anything:
-
-```python
-from agents_engine import discover
-
-discover.configure(code_root="~/Projects")
-discover.code_root()                     # the folder in use, always absolute
-```
-
-Without that call, `AGENTS_CODE_ROOT` in the environment is used, and without
-either, `~/Code`. `configure()` also writes the choice into the environment,
-because each agent is its own process and reads the machine's daily ceiling
-from `AGENTS/fences.json` under the same folder. `AGENTS_FENCES` still names
-that file directly when it lives anywhere else. `configure(None)` puts back
-whatever the environment said before.
-
-`discover.find(root)`, `routes.state_view(root)` and `ApiHandler.root` still
-take a folder of their own, which wins over all of the above for that one
-call. `/state.json` says which folder it walked, as `root`.
+Agents are found by walking `~/Code`, three levels deep, and nowhere else. The
+machine's daily ceiling is read from `~/Code/AGENTS/fences.json`, or from the
+file `AGENTS_FENCES` names. `discover.find(root)`, `routes.state_view(root)`
+and `ApiHandler.root` take a folder of their own, which is how the tests point
+at fake agents and how the bench board limits its Agents tab to its own
+`agents/` folder. `/state.json` says which folder it walked, as `root`.
 
 ## The JavaScript side
 
@@ -203,7 +188,7 @@ from there too. The parts a status view usually needs:
 - `agent.running`, true while a run is going.
 - `agent.targets`, one per thing the agent works on, each with `on`, `hours`,
   `counts` and `last_run`. A target's `id` is what the write calls take. For the
-  improvements agent it is the repo's path under the agents root, such as
+  improvements agent it is the repo's path under `~/Code`, such as
   `PACKAGES/tenon`.
 - `agent.broken`, set instead of everything else when the agent could not
   answer. Draw it rather than hiding the agent.

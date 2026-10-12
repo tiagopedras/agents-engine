@@ -16,13 +16,9 @@ import json
 import os
 import subprocess
 
-# The folder agents are looked for under. A host names it with `configure()`;
-# without that, $AGENTS_CODE_ROOT; without either, ~/Code.
-DEFAULT_ROOT = "~/Code"
-_root = None
-_INHERITED = os.environ.get("AGENTS_CODE_ROOT")
+CODE = os.path.expanduser("~/Code")
 
-# Three levels below the root, which is deep enough for `bench/agents/plan-agent`
+# Three levels below ~/Code, which is deep enough for `bench/agents/plan-agent`
 # and shallow enough not to walk into anything's build output.
 MAX_DEPTH = 3
 SKIP = {"node_modules", ".git", "EXTERNAL", "TEMP", "__pycache__"}
@@ -38,39 +34,14 @@ class AgentError(RuntimeError):
     pass
 
 
-def configure(code_root=None):
-    """Name the folder agents are found under, for this process and its children.
-
-    The agents themselves run as child processes (their `state`, `run` and
-    `wake`), and they read the machine's fences from the same root, so the
-    choice is also put in the environment they inherit. `None` goes back to
-    $AGENTS_CODE_ROOT as it was before the host started, or to ~/Code.
-    """
-    global _root
-    _root = os.path.abspath(os.path.expanduser(code_root)) if code_root else None
-    if _root:
-        os.environ["AGENTS_CODE_ROOT"] = _root
-    elif _INHERITED is None:
-        os.environ.pop("AGENTS_CODE_ROOT", None)
-    else:
-        os.environ["AGENTS_CODE_ROOT"] = _INHERITED
-
-
-def code_root():
-    """Where agents are looked for: `configure()`, else $AGENTS_CODE_ROOT, else ~/Code."""
-    if _root:
-        return _root
-    return os.path.abspath(os.path.expanduser(os.environ.get("AGENTS_CODE_ROOT") or DEFAULT_ROOT))
-
-
 def find(root=None):
-    """Every agent under the root (`code_root()` unless one is given), sorted by name.
+    """Every agent under ~/Code, by descriptor, sorted by name.
 
     Never cached. The whole file is a few hundred bytes and the walk is the
     cheap half of a page load; an agent added while the dashboard was open
     appearing only after a restart would be a worse trade than the walk.
     """
-    root = root or code_root()
+    root = root or CODE
     out = []
     for dirpath, dirnames, filenames in os.walk(root):
         depth = dirpath[len(root):].count(os.sep)
@@ -125,7 +96,7 @@ def references(root=None, path=None):
     # The list is an app's own, so the app names it. No path is no list.
     if not path:
         return []
-    root = root or code_root()
+    root = root or CODE
     try:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)

@@ -3,7 +3,7 @@
     python3 -m agents_engine.wake            wake every agent that has a `wake` command
     python3 -m agents_engine.wake --list     say which ones it would wake, and wake nothing
 
-    python3 -m agents_engine.wake install [--code-root DIR] [--dry-run]
+    python3 -m agents_engine.wake install [--dry-run]
     python3 -m agents_engine.wake uninstall
     python3 -m agents_engine.wake status
 
@@ -65,23 +65,17 @@ def _search_path():
     return ":".join(out)
 
 
-def plist(code_root=None):
+def plist():
     """The job, as a dict for plistlib. Every hour at quarter past, and nothing else.
 
     The hours each agent runs at live in that agent's own settings, edited from
     the agents dashboard, so this wakes all of them and each one decides.
-    `code_root` is carried as $AGENTS_CODE_ROOT, since launchd does not read the
-    shell's environment; with none given, one already exported is carried instead.
     """
-    code_root = code_root or os.environ.get("AGENTS_CODE_ROOT")
-    env = {"PATH": _search_path(), "PYTHONPATH": PYTHON_DIR}
-    if code_root:
-        env["AGENTS_CODE_ROOT"] = os.path.abspath(os.path.expanduser(code_root))
     return {
         "Label": LABEL,
         "ProgramArguments": [sys.executable, "-m", "agents_engine.wake"],
         "WorkingDirectory": PYTHON_DIR,
-        "EnvironmentVariables": env,
+        "EnvironmentVariables": {"PATH": _search_path(), "PYTHONPATH": PYTHON_DIR},
         "StartCalendarInterval": {"Minute": 15},
         "StandardOutPath": LOG,
         "StandardErrorPath": LOG,
@@ -117,8 +111,8 @@ def job():
     return seen[0]
 
 
-def install(code_root=None, dry=False):
-    body = plistlib.dumps(plist(code_root)).decode("utf-8")
+def install(dry=False):
+    body = plistlib.dumps(plist()).decode("utf-8")
     if dry:
         print(body, end="")
         return 0
@@ -160,21 +154,14 @@ def status():
                           "loaded" if j["loaded"] else "not loaded"))
     print("plist  %s" % plist_path(j["label"]))
     print("log    %s" % LOG)
-    print("root   %s" % discover.code_root())
+    print("root   %s" % discover.CODE)
     return 0 if j["loaded"] else 1
-
-
-def _flag(argv, name):
-    if name in argv:
-        i = argv.index(name)
-        return argv[i + 1] if i + 1 < len(argv) else None
-    return None
 
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if argv and argv[0] == "install":
-        return install(_flag(argv, "--code-root"), dry="--dry-run" in argv)
+        return install(dry="--dry-run" in argv)
     if argv and argv[0] == "uninstall":
         return uninstall()
     if argv and argv[0] == "status":

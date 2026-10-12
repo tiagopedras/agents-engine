@@ -540,40 +540,24 @@ def test_cors():
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_code_root():
-    """Where agents are looked for: configure(), else $AGENTS_CODE_ROOT, else ~/Code."""
+def test_root_is_code():
+    """Agents are looked for under ~/Code, and the fences file sits there too."""
     from agents_engine.runner import fences
-    saved = {k: os.environ.pop(k, None) for k in ("AGENTS_CODE_ROOT", "AGENTS_FENCES")}
+    saved = os.environ.pop("AGENTS_FENCES", None)
     root = tempfile.mkdtemp()
-    other = tempfile.mkdtemp()
     try:
-        discover.configure(None)
-        check("nothing set is ~/Code", discover.code_root(), os.path.expanduser("~/Code"))
-        check("fences sit under ~/Code too", fences.path(),
+        check("the walk starts at ~/Code", discover.CODE, os.path.expanduser("~/Code"))
+        check("fences sit under ~/Code", fences.path(),
               os.path.join(os.path.expanduser("~/Code"), "AGENTS", "fences.json"))
-
-        os.environ["AGENTS_CODE_ROOT"] = other
-        check("the environment beats the default", discover.code_root(), other)
-
-        fake_agent(root, "here", "Here", {"targets": []})
-        discover.configure(root)
-        check("configure beats the environment", discover.code_root(), root)
-        check("and is handed on to the agents it starts", os.environ["AGENTS_CODE_ROOT"], root)
-        check("find() walks it with no argument", [a["id"] for a in discover.find()], ["here"])
-        check("an argument still wins for one call", discover.find(other), [])
-        check("state.json says which folder it walked", routes.state_view()["root"], root)
-        check("fences follow the root", fences.path(), os.path.join(root, "AGENTS", "fences.json"))
-        os.environ["AGENTS_FENCES"] = os.path.join(other, "f.json")
-        check("AGENTS_FENCES still wins", fences.path(), os.path.join(other, "f.json"))
+        os.environ["AGENTS_FENCES"] = os.path.join(root, "f.json")
+        check("AGENTS_FENCES still wins", fences.path(), os.path.join(root, "f.json"))
+        check("state.json says which folder it walked", routes.state_view(root)["root"], root)
     finally:
-        discover.configure(None)
-        for k, v in saved.items():
-            if v is None:
-                os.environ.pop(k, None)
-            else:
-                os.environ[k] = v
+        if saved is None:
+            os.environ.pop("AGENTS_FENCES", None)
+        else:
+            os.environ["AGENTS_FENCES"] = saved
         shutil.rmtree(root, ignore_errors=True)
-        shutil.rmtree(other, ignore_errors=True)
 
 
 def test_wake_plist():
@@ -584,13 +568,12 @@ def test_wake_plist():
     from agents_engine import wake
     home = tempfile.mkdtemp()
     saved_home = os.environ.get("HOME")
-    saved_root = os.environ.pop("AGENTS_CODE_ROOT", None)
     saved_loaded = wake._loaded
     try:
         os.environ["HOME"] = home
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            code = wake.main(["install", "--dry-run", "--code-root", "~/Projects"])
+            code = wake.main(["install", "--dry-run"])
         check("dry run exits cleanly", code, 0)
         job = plistlib.loads(out.getvalue().encode("utf-8"))
         here = os.path.dirname(os.path.abspath(__file__))
@@ -599,14 +582,12 @@ def test_wake_plist():
         check("runs this python", job["ProgramArguments"], [sys.executable, "-m", "agents_engine.wake"])
         check("from this package", (job["WorkingDirectory"], job["EnvironmentVariables"]["PYTHONPATH"]),
               (here, here))
-        check("the root is carried, expanded", job["EnvironmentVariables"]["AGENTS_CODE_ROOT"],
-              os.path.join(home, "Projects"))
         check("PATH holds this python's folder",
               os.path.dirname(sys.executable) in job["EnvironmentVariables"]["PATH"].split(":"), True)
         check("logs under ~/Library/Logs", job["StandardOutPath"].endswith("/Library/Logs/agents-wake.log"), True)
         check("dry run writes nothing", os.path.exists(os.path.join(home, "Library")), False)
-        check("no root given, none carried",
-              "AGENTS_CODE_ROOT" in wake.plist()["EnvironmentVariables"], False)
+        check("only PATH and PYTHONPATH are set", sorted(job["EnvironmentVariables"]),
+              ["PATH", "PYTHONPATH"])
 
         # The job as the dashboard reads it, with launchctl stood in for.
         wake._loaded = lambda label: False
@@ -627,8 +608,6 @@ def test_wake_plist():
             os.environ.pop("HOME", None)
         else:
             os.environ["HOME"] = saved_home
-        if saved_root is not None:
-            os.environ["AGENTS_CODE_ROOT"] = saved_root
         shutil.rmtree(home, ignore_errors=True)
 
 
@@ -645,7 +624,7 @@ def main():
     test_reference_agents()
     test_one_agent_route()
     test_cors()
-    test_code_root()
+    test_root_is_code()
     test_wake_plist()
     if FAILED:
         print("%d failed\n" % len(FAILED))

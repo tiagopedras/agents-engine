@@ -147,8 +147,8 @@ list and wants requests marked on it can name an `enqueue(target, req)` hook.
 log as a scheduled pass, and ignores the hours.
 
 Scheduled passes also sit under one ceiling for the whole machine, written in
-`AGENTS/fences.json` under the agents root (`runner/fences.py`), or wherever
-`AGENTS_FENCES` names: a daily spend across every
+`~/Code/AGENTS/fences.json` (`runner/fences.py`), or wherever `AGENTS_FENCES`
+names: a daily spend across every
 agent. Each item's cost is appended to `AGENTS/spend/<date>.jsonl`, whatever
 started it, and a scheduled pass stops before an item the day's remainder would
 not cover. Agents run in parallel, so the day can overshoot by one item per agent
@@ -241,8 +241,7 @@ because every line of it is a path on one person's machine. From `python/`:
 ```bash
 python3 -m agents_engine.wake install                  # write the job and load it
 python3 -m agents_engine.wake install --dry-run        # print the job and write nothing
-python3 -m agents_engine.wake install --code-root ~/Projects
-python3 -m agents_engine.wake status                   # written, loaded, and the root it walks
+python3 -m agents_engine.wake status                   # written and loaded, or not
 python3 -m agents_engine.wake uninstall                # unload it and delete the file
 ```
 
@@ -251,10 +250,8 @@ with `launchctl bootstrap`. The job runs the Python that ran `install`, from thi
 copy of the package, at quarter past every hour. launchd starts a job with an
 almost empty `PATH`, so the job carries one that holds that Python's folder,
 the folder `claude` was found in, Homebrew's and `~/.local/bin`. Install from a
-shell where `claude` works, and again if `claude` moves. Agents are not looked
-for in the shell's environment either, so `--code-root`, or an
-`AGENTS_CODE_ROOT` exported when `install` runs, is written into the job.
-Running `install` again replaces the job in place.
+shell where `claude` works, and again if `claude` moves. Running `install`
+again replaces the job in place.
 
 A machine that loaded the job by hand under its old label,
 `com.tiagopedras.agents-wake`, still reads as armed on the dashboard. `install`

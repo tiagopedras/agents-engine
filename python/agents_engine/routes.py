@@ -44,7 +44,7 @@ def state_view(root=None, refs=None):
     # on" would make the page read worse the more work is queued up ahead of it.
     planned = discover.references(root, refs)
     now = dt.datetime.now().astimezone()
-    return {"now": now.isoformat(), "hour": now.hour, "root": root or discover.code_root(),
+    return {"now": now.isoformat(), "hour": now.hour, "root": root or discover.CODE,
             "agents": cards + planned, "strip": strip(cards),
             "boundaries": boundaries(account_window(cards))}
 
@@ -210,8 +210,8 @@ class ApiHandler(BaseHTTPRequestHandler):
     override `do_GET`, answer your own routes, and hand the rest to
     `self.api_get(route)`."""
 
-    # Where agents are looked for. None is `discover.code_root()`; the tests
-    # point it at a folder of fake agents.
+    # Where agents are looked for. None is ~/Code; the tests point it at a
+    # folder of fake agents.
     root = None
     # The app's own references.json, if it keeps one. None draws no reference
     # agents at all.
