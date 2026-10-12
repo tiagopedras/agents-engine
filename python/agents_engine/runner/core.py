@@ -240,8 +240,8 @@ def run_target(agent, target, trigger="schedule", only=None, dry=False, now=None
                 stop = "the night's budget of $%.2f would not cover another item" % budget
             elif trigger == "schedule" and at.hour not in conf["hours"]:
                 stop = "the scheduled hours ended"
-            elif trigger == "schedule" and fences.stop_before(at, opts["budget"]):
-                stop = fences.stop_before(at, opts["budget"])
+            elif trigger == "schedule" and fences.stop_before(at, opts["budget"], agent.id):
+                stop = fences.stop_before(at, opts["budget"], agent.id)
             else:
                 stop = agent.call("should_stop", target, run)
             if stop:

@@ -1,8 +1,8 @@
-"""One daily spending ceiling across every agent on the machine.
+"""Daily spending ceilings: one per agent, and one across every agent on the machine.
 
 An agent's own settings say when it may start and how much it may spend a night.
-This sits above all of them, in one file, so "the whole machine spends at most
-this much a day" is written once. When each agent runs is set per agent, on the
+This sits above all of them, in one file, so "this agent spends at most this much
+a day" and "the whole machine spends at most this much a day" are written once. When each agent runs is set per agent, on the
 dashboard, and nothing here overrides it.
 
 It fences scheduled runs only. A run started by hand (`--now`, or Run now on the
@@ -10,9 +10,11 @@ dashboard) is someone asking for it, so it goes ahead, and its spend still count
 towards the day.
 
     ~/Code/AGENTS/fences.json      or the path in $AGENTS_FENCES
-    {"daily_budget": 20.0}
+    {"daily_budget": 20.0, "agent_budgets": {"plan-agent": 2.0, "implement-agent": 5.0}}
 
-A missing file, or a missing key, fences nothing.
+An agent stops at its own budget, and every agent stops at `daily_budget`, so
+both apply. A missing file, a missing key, or an agent not named in
+`agent_budgets` fences nothing.
 Spend is kept in `spend/YYYY-MM-DD.jsonl` beside the file, one line per item run.
 Agents run in parallel, so the ceiling is checked before each item and the day can
 overshoot it by at most one item per agent running at that moment.
@@ -42,13 +44,16 @@ def _spend_file(day):
     return os.path.join(os.path.dirname(path()), "spend", "%s.jsonl" % day.isoformat())
 
 
-def spent(day):
+def spent(day, agent_id=None):
+    """The day's spend across every agent, or one agent's when `agent_id` is given."""
     total = 0.0
     try:
         with open(_spend_file(day), encoding="utf-8") as fh:
             for line in fh:
                 try:
-                    total += float(json.loads(line).get("cost") or 0)
+                    rec = json.loads(line)
+                    if agent_id is None or rec.get("agent") == agent_id:
+                        total += float(rec.get("cost") or 0)
                 except (ValueError, AttributeError):
                     continue
     except OSError:
@@ -76,11 +81,37 @@ def left(now, f=None):
     return max(0.0, float(ceiling) - spent(now.date()))
 
 
-def stop_before(now, item_budget):
+def agent_budget(agent_id, f=None):
+    """The agent's own daily budget, or None when it has none."""
+    f = load() if f is None else f
+    budgets = f.get("agent_budgets")
+    if not isinstance(budgets, dict) or budgets.get(agent_id) is None:
+        return None
+    try:
+        return float(budgets[agent_id])
+    except (TypeError, ValueError):
+        return None
+
+
+def agent_left(agent_id, now, f=None):
+    """What one agent may still spend today, or None when it has no budget of its own."""
+    ceiling = agent_budget(agent_id, f)
+    if ceiling is None:
+        return None
+    return max(0.0, ceiling - spent(now.date(), agent_id))
+
+
+def stop_before(now, item_budget, agent_id=None):
     """The reason a scheduled pass must stop before its next item, or None."""
     f = load()
+    need = float(item_budget) - 1e-9
+    if agent_id is not None:
+        room = agent_left(agent_id, now, f)
+        if room is not None and room < need:
+            return "%s's daily budget of $%.2f would not cover another item" % (
+                agent_id, agent_budget(agent_id, f))
     room = left(now, f)
-    if room is not None and room + 1e-9 < float(item_budget):
+    if room is not None and room < need:
         return "the machine's daily ceiling of $%.2f would not cover another item" % float(f["daily_budget"])
     return None
 

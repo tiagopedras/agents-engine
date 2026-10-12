@@ -330,10 +330,11 @@ def test_agent_budget_shared_across_targets():
     shutil.rmtree(root)
 
 
-def set_fences(**f):
+def set_fences(keep_spend=False, **f):
     with open(os.environ["AGENTS_FENCES"], "w") as fh:
         json.dump(f, fh)
-    shutil.rmtree(os.path.join(FENCES_DIR, "spend"), ignore_errors=True)
+    if not keep_spend:
+        shutil.rmtree(os.path.join(FENCES_DIR, "spend"), ignore_errors=True)
 
 
 def test_fences_manual_runs_count_towards_the_day():
@@ -363,6 +364,32 @@ def test_fences_daily_ceiling_across_agents():
     set_fences()
     shutil.rmtree(root)
     shutil.rmtree(oroot)
+
+
+def test_fences_budget_per_agent():
+    set_fences(agent_budgets={"test-agent": 3.0, "other-agent": 1.0})
+    now = dt.datetime.now().astimezone()
+    fences.record("other-agent", "alpha", "elsewhere", 1.25, now)
+    agent, root = make_agent()
+    add(root, "a.md", "one", created="2026-09-01")
+    add(root, "b.md", "two", created="2026-09-02")
+    settings.save(agent.state_dir, agent.hooks, "alpha", {"on": True, "hours": list(range(24))})
+    run = core.run_target(agent, agent.target("alpha"), trigger="schedule", now=now)
+    check("another agent's spend does not count against this one", len(run["did"]), 1)
+    check("its own spend does", "test-agent's daily budget of $3.00" in (run["stopped"] or ""), True)
+    check("spend is told apart by agent", round(fences.spent(now.date(), "other-agent"), 2), 1.25)
+    check("other-agent is already past its $1", "other-agent's" in (fences.stop_before(now, 0.5, "other-agent") or ""),
+          True)
+    check("an agent not named has no budget of its own", fences.stop_before(now, 0.5, "nobody"), None)
+
+    set_fences(keep_spend=True, daily_budget=3.0, agent_budgets={"test-agent": 10.0})
+    check("$2.50 spent in all, so $0.40 still fits", fences.stop_before(now, 0.4, "test-agent"), None)
+    check("the total still applies over a roomy agent budget",
+          "daily ceiling of $3.00" in (fences.stop_before(now, 0.6, "test-agent") or ""), True)
+    set_fences(keep_spend=True, agent_budgets={"test-agent": None})
+    check("a null budget is no limit", fences.stop_before(now, 50, "test-agent"), None)
+    set_fences()
+    shutil.rmtree(root)
 
 
 def test_enqueue():

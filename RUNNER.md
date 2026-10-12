@@ -146,13 +146,19 @@ list and wants requests marked on it can name an `enqueue(target, req)` hook.
 `--now` is the on-demand path. It goes through the same lock, budget and daily
 log as a scheduled pass, and ignores the hours.
 
-Scheduled passes also sit under one ceiling for the whole machine, written in
+Scheduled passes also sit under daily ceilings written in
 `~/Code/AGENTS/fences.json` (`runner/fences.py`), or wherever `AGENTS_FENCES`
-names: a daily spend across every
-agent. Each item's cost is appended to `AGENTS/spend/<date>.jsonl`, whatever
-started it, and a scheduled pass stops before an item the day's remainder would
-not cover. Agents run in parallel, so the day can overshoot by one item per agent
-running at that moment. A run by hand is never stopped by it, and its spend still
+names. `daily_budget` is a daily spend across every agent, and `agent_budgets`
+gives one agent a daily spend of its own, keyed by agent id:
+
+    {"daily_budget": 20.0, "agent_budgets": {"plan-agent": 2.0, "implement-agent": 5.0}}
+
+Each item's cost is appended to `AGENTS/spend/<date>.jsonl` with the agent's id,
+whatever started it, and a scheduled pass stops before an item that its own
+budget's remainder, or the machine's, would not cover. Both apply when both are
+set. A missing key, or an agent not named, has no limit. Agents run in parallel,
+so the day can overshoot the machine's ceiling by one item per agent running at
+that moment. A run by hand is never stopped by either, and its spend still
 counts. When each agent runs is its own hours, set on the dashboard.
 
 ## The single wake
