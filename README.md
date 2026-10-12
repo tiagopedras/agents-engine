@@ -114,9 +114,10 @@ for the wake (see `RUNNER.md`). That is how the tests point at fake agents and
 how Bench keeps both its Agents tab and its hourly wake to the agents inside
 its own checkout. `/state.json` says which folder it walked, as `root`.
 
-The machine's daily ceiling stays in one place whatever the root, since it is
-about the machine rather than any one host: `~/Code/AGENTS/fences.json`, or the
-file `AGENTS_FENCES` names.
+The daily ceiling is read from `~/Code/AGENTS/fences.json`, or from the file
+`AGENTS_FENCES` names, with the day's spend kept in `spend/` beside it. A host
+that wants its ceiling and spend kept with it sets `AGENTS_FENCES` in its own
+environment and installs the wake with `--fences` (see `RUNNER.md`).
 
 ## The JavaScript side
 

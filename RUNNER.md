@@ -242,6 +242,7 @@ because every line of it is a path on one person's machine. From `python/`:
 python3 -m agents_engine.wake install                  # write the job and load it
 python3 -m agents_engine.wake install --dry-run        # print the job and write nothing
 python3 -m agents_engine.wake install --root ~/bench   # wake only the agents under that folder
+python3 -m agents_engine.wake install --fences ~/bench/data/agents/fences.json
 python3 -m agents_engine.wake status                   # written and loaded, or not
 python3 -m agents_engine.wake uninstall                # unload it and delete the file
 ```
@@ -259,6 +260,13 @@ Without `--root` the job walks `~/Code`. With it, the job runs the wake as
 folder and nowhere else, so an app that installs the wake for its own agents
 never starts anyone else's. Bench's `scripts/install.sh` passes its checkout.
 `status` says which folder the installed job walks.
+
+`--fences` does the same for the daily ceiling. The job sets `AGENTS_FENCES` to
+that file, every agent it wakes inherits it, and the spend records go in
+`spend/` beside it. Without it, agents use `~/Code/AGENTS/fences.json`. A host
+that also starts runs itself, as Bench's board does from its Agents tab, sets
+the same `AGENTS_FENCES` in its own environment so both kinds of run count
+towards one day.
 
 A machine that loaded the job by hand under its old label,
 `com.tiagopedras.agents-wake`, still reads as armed on the dashboard. `install`

@@ -4,7 +4,7 @@
     python3 -m agents_engine.wake --list     say which ones it would wake, and wake nothing
     python3 -m agents_engine.wake --root DIR look for agents under DIR rather than ~/Code
 
-    python3 -m agents_engine.wake install [--root DIR] [--dry-run]
+    python3 -m agents_engine.wake install [--root DIR] [--fences PATH] [--dry-run]
     python3 -m agents_engine.wake uninstall
     python3 -m agents_engine.wake status
 
@@ -17,7 +17,10 @@ answered from its own schedule.
 
 `--root` is how a host keeps the wake to its own agents: the bench installer
 passes its checkout, so only the agents inside it are found and woken. Given to
-`install`, it is written into the job's arguments.
+`install`, it is written into the job's arguments. `--fences` puts the daily
+ceiling's file, and the spend records kept beside it, with that host too: it is
+written into the job's environment as $AGENTS_FENCES, which every agent the
+wake starts inherits.
 
 An agent with no `wake` command is not woken here, which is how an agent still
 on its own plist keeps working until it moves over.
@@ -74,13 +77,17 @@ def _root(path):
     return os.path.abspath(os.path.expanduser(path)) if path else None
 
 
-def plist(root=None):
+def plist(root=None, fences=None):
     """The job, as a dict for plistlib. Every hour at quarter past, and nothing else.
 
     The hours each agent runs at live in that agent's own settings, edited from
     the agents dashboard, so this wakes all of them and each one decides. With a
-    `root`, the job looks for agents under that folder only.
+    `root`, the job looks for agents under that folder only. With `fences`, the
+    agents read their ceiling from that file and record spend beside it.
     """
+    env = {"PATH": _search_path(), "PYTHONPATH": PYTHON_DIR}
+    if fences:
+        env["AGENTS_FENCES"] = _root(fences)
     args = [sys.executable, "-m", "agents_engine.wake"]
     if root:
         args += ["--root", _root(root)]
@@ -88,7 +95,7 @@ def plist(root=None):
         "Label": LABEL,
         "ProgramArguments": args,
         "WorkingDirectory": PYTHON_DIR,
-        "EnvironmentVariables": {"PATH": _search_path(), "PYTHONPATH": PYTHON_DIR},
+        "EnvironmentVariables": env,
         "StartCalendarInterval": {"Minute": 15},
         "StandardOutPath": LOG,
         "StandardErrorPath": LOG,
@@ -124,11 +131,11 @@ def job():
     return seen[0]
 
 
-def install(root=None, dry=False):
+def install(root=None, fences=None, dry=False):
     if root and not os.path.isdir(_root(root)):
         print("%s is not a folder" % _root(root), file=sys.stderr)
         return 2
-    body = plistlib.dumps(plist(root)).decode("utf-8")
+    body = plistlib.dumps(plist(root, fences)).decode("utf-8")
     if dry:
         print(body, end="")
         return 0
@@ -194,7 +201,7 @@ def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     root = _root(_flag(argv, "--root"))
     if argv and argv[0] == "install":
-        return install(root, dry="--dry-run" in argv)
+        return install(root, _flag(argv, "--fences"), dry="--dry-run" in argv)
     if argv and argv[0] == "uninstall":
         return uninstall()
     if argv and argv[0] == "status":

@@ -10,6 +10,7 @@ pressed the wrong thing.
     python3 python/test_engine.py
 """
 
+import datetime as dt
 import json
 import os
 import shutil
@@ -642,6 +643,28 @@ def test_wake_root():
         job = plistlib.loads(out.getvalue().encode("utf-8"))
         check("the job carries the root as an argument", job["ProgramArguments"],
               [sys.executable, "-m", "agents_engine.wake", "--root", inner])
+        check("no --fences, no AGENTS_FENCES", "AGENTS_FENCES" in job["EnvironmentVariables"], False)
+
+        out = io.StringIO()
+        fences_file = os.path.join(inner, "data", "agents", "fences.json")
+        with contextlib.redirect_stdout(out):
+            wake.main(["install", "--root", inner, "--fences", fences_file, "--dry-run"])
+        job = plistlib.loads(out.getvalue().encode("utf-8"))
+        check("--fences is carried as AGENTS_FENCES", job["EnvironmentVariables"].get("AGENTS_FENCES"),
+              fences_file)
+        check("a dry run makes no folder for it", os.path.exists(os.path.dirname(fences_file)), False)
+        from agents_engine.runner import fences
+        saved = os.environ.get("AGENTS_FENCES")
+        os.environ["AGENTS_FENCES"] = fences_file
+        try:
+            fences.record("a", "t", "item", 1.5, dt.datetime(2026, 10, 12, 3, 0))
+            check("spend is recorded beside that file",
+                  os.path.exists(os.path.join(os.path.dirname(fences_file), "spend", "2026-10-12.jsonl")), True)
+        finally:
+            if saved is None:
+                os.environ.pop("AGENTS_FENCES", None)
+            else:
+                os.environ["AGENTS_FENCES"] = saved
         with contextlib.redirect_stderr(io.StringIO()):
             check("a root that is not a folder is refused",
                   wake.main(["install", "--root", os.path.join(outer, "nope"), "--dry-run"]), 2)
