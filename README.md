@@ -106,12 +106,17 @@ routes send, for a server that wants to shape its own.
 
 ### Where agents are looked for
 
-Agents are found by walking `~/Code`, three levels deep, and nowhere else. The
-machine's daily ceiling is read from `~/Code/AGENTS/fences.json`, or from the
-file `AGENTS_FENCES` names. `discover.find(root)`, `routes.state_view(root)`
-and `ApiHandler.root` take a folder of their own, which is how the tests point
-at fake agents and how the bench board limits its Agents tab to its own
-`agents/` folder. `/state.json` says which folder it walked, as `root`.
+Agents are found by walking one folder, three levels deep. It is `~/Code`
+unless the host names another, and there is no setting or environment variable
+that widens it. A host names its folder by passing it: `discover.find(root)`,
+`routes.state_view(root)` and `ApiHandler.root` for the routes, and `--root`
+for the wake (see `RUNNER.md`). That is how the tests point at fake agents and
+how Bench keeps both its Agents tab and its hourly wake to the agents inside
+its own checkout. `/state.json` says which folder it walked, as `root`.
+
+The machine's daily ceiling stays in one place whatever the root, since it is
+about the machine rather than any one host: `~/Code/AGENTS/fences.json`, or the
+file `AGENTS_FENCES` names.
 
 ## The JavaScript side
 

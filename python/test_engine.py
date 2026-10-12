@@ -611,6 +611,44 @@ def test_wake_plist():
         shutil.rmtree(home, ignore_errors=True)
 
 
+def test_wake_root():
+    """A wake given --root finds and wakes agents under that folder only."""
+    import contextlib
+    import io
+    import plistlib
+    from agents_engine import wake
+    outer = tempfile.mkdtemp()
+    try:
+        wake_cmd = {"wake": [sys.executable, "-c", "pass"]}
+        fake_agent(outer, "outside", "Outside", {"targets": []}, extra=wake_cmd)
+        inner = os.path.join(outer, "bench")
+        fake_agent(inner, "inside", "Inside", {"targets": []}, extra=wake_cmd, at="agents/inside")
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            wake.main(["--root", inner, "--list"])
+        check("only the agent under --root is woken",
+              [l.split()[0] for l in out.getvalue().splitlines()], ["inside"])
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            wake.main(["--root", outer, "--list"])
+        check("a wider root finds both",
+              sorted(l.split()[0] for l in out.getvalue().splitlines()), ["inside", "outside"])
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = wake.main(["install", "--root", inner, "--dry-run"])
+        check("install --root dry run exits cleanly", code, 0)
+        job = plistlib.loads(out.getvalue().encode("utf-8"))
+        check("the job carries the root as an argument", job["ProgramArguments"],
+              [sys.executable, "-m", "agents_engine.wake", "--root", inner])
+        with contextlib.redirect_stderr(io.StringIO()):
+            check("a root that is not a folder is refused",
+                  wake.main(["install", "--root", os.path.join(outer, "nope"), "--dry-run"]), 2)
+    finally:
+        shutil.rmtree(outer, ignore_errors=True)
+
+
 def main():
     test_discovery()
     test_broken_agent()
@@ -626,6 +664,7 @@ def main():
     test_cors()
     test_root_is_code()
     test_wake_plist()
+    test_wake_root()
     if FAILED:
         print("%d failed\n" % len(FAILED))
         for f in FAILED:

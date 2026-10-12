@@ -241,6 +241,7 @@ because every line of it is a path on one person's machine. From `python/`:
 ```bash
 python3 -m agents_engine.wake install                  # write the job and load it
 python3 -m agents_engine.wake install --dry-run        # print the job and write nothing
+python3 -m agents_engine.wake install --root ~/bench   # wake only the agents under that folder
 python3 -m agents_engine.wake status                   # written and loaded, or not
 python3 -m agents_engine.wake uninstall                # unload it and delete the file
 ```
@@ -253,13 +254,19 @@ the folder `claude` was found in, Homebrew's and `~/.local/bin`. Install from a
 shell where `claude` works, and again if `claude` moves. Running `install`
 again replaces the job in place.
 
+Without `--root` the job walks `~/Code`. With it, the job runs the wake as
+`python3 -m agents_engine.wake --root <dir>`, which looks for agents under that
+folder and nowhere else, so an app that installs the wake for its own agents
+never starts anyone else's. Bench's `scripts/install.sh` passes its checkout.
+`status` says which folder the installed job walks.
+
 A machine that loaded the job by hand under its old label,
 `com.tiagopedras.agents-wake`, still reads as armed on the dashboard. `install`
 says so when that one is loaded as well, since both would wake every agent each
 hour, and leaves unloading it to you.
 
-`python3 -m agents_engine.wake --list` (from `python/`) says which agents it
-wakes. What each one did is in its own daily log; the wake's own line per agent
+`python3 -m agents_engine.wake --list` (from `python/`, with the same `--root`
+as the job) says which agents it wakes. What each one did is in its own daily log; the wake's own line per agent
 is in `~/Library/Logs/agents-wake.log`.
 
 ## Order of work

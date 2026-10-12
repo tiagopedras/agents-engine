@@ -2,8 +2,9 @@
 
     python3 -m agents_engine.wake            wake every agent that has a `wake` command
     python3 -m agents_engine.wake --list     say which ones it would wake, and wake nothing
+    python3 -m agents_engine.wake --root DIR look for agents under DIR rather than ~/Code
 
-    python3 -m agents_engine.wake install [--dry-run]
+    python3 -m agents_engine.wake install [--root DIR] [--dry-run]
     python3 -m agents_engine.wake uninstall
     python3 -m agents_engine.wake status
 
@@ -13,6 +14,10 @@ this copy of the package. It holds no policy: it finds every agent the way the
 dashboard does and starts each one's `wake` command in its own process, without
 waiting. Whether this hour is one of an agent's own is the agent's question,
 answered from its own schedule.
+
+`--root` is how a host keeps the wake to its own agents: the bench installer
+passes its checkout, so only the agents inside it are found and woken. Given to
+`install`, it is written into the job's arguments.
 
 An agent with no `wake` command is not woken here, which is how an agent still
 on its own plist keeps working until it moves over.
@@ -65,15 +70,23 @@ def _search_path():
     return ":".join(out)
 
 
-def plist():
+def _root(path):
+    return os.path.abspath(os.path.expanduser(path)) if path else None
+
+
+def plist(root=None):
     """The job, as a dict for plistlib. Every hour at quarter past, and nothing else.
 
     The hours each agent runs at live in that agent's own settings, edited from
-    the agents dashboard, so this wakes all of them and each one decides.
+    the agents dashboard, so this wakes all of them and each one decides. With a
+    `root`, the job looks for agents under that folder only.
     """
+    args = [sys.executable, "-m", "agents_engine.wake"]
+    if root:
+        args += ["--root", _root(root)]
     return {
         "Label": LABEL,
-        "ProgramArguments": [sys.executable, "-m", "agents_engine.wake"],
+        "ProgramArguments": args,
         "WorkingDirectory": PYTHON_DIR,
         "EnvironmentVariables": {"PATH": _search_path(), "PYTHONPATH": PYTHON_DIR},
         "StartCalendarInterval": {"Minute": 15},
@@ -111,8 +124,11 @@ def job():
     return seen[0]
 
 
-def install(dry=False):
-    body = plistlib.dumps(plist()).decode("utf-8")
+def install(root=None, dry=False):
+    if root and not os.path.isdir(_root(root)):
+        print("%s is not a folder" % _root(root), file=sys.stderr)
+        return 2
+    body = plistlib.dumps(plist(root)).decode("utf-8")
     if dry:
         print(body, end="")
         return 0
@@ -154,19 +170,36 @@ def status():
                           "loaded" if j["loaded"] else "not loaded"))
     print("plist  %s" % plist_path(j["label"]))
     print("log    %s" % LOG)
-    print("root   %s" % discover.CODE)
+    print("root   %s" % (_installed_root(j["label"]) or discover.CODE))
     return 0 if j["loaded"] else 1
+
+
+def _installed_root(label):
+    try:
+        with open(plist_path(label), "rb") as fh:
+            args = plistlib.load(fh).get("ProgramArguments") or []
+    except (OSError, ValueError, plistlib.InvalidFileException):
+        return None
+    return _flag(args, "--root")
+
+
+def _flag(argv, name):
+    if name in argv:
+        i = argv.index(name)
+        return argv[i + 1] if i + 1 < len(argv) else None
+    return None
 
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
+    root = _root(_flag(argv, "--root"))
     if argv and argv[0] == "install":
-        return install(dry="--dry-run" in argv)
+        return install(root, dry="--dry-run" in argv)
     if argv and argv[0] == "uninstall":
         return uninstall()
     if argv and argv[0] == "status":
         return status()
-    agents = [a for a in discover.find() if a.get("wake")]
+    agents = [a for a in discover.find(root) if a.get("wake")]
     if "--list" in argv:
         for a in agents:
             print("%s  %s" % (a["id"], a["cwd"]))
