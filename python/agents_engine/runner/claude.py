@@ -118,7 +118,8 @@ def explain(result, opts):
                 "Raise the per-item budget or make the item smaller.")
     if k == "claude_missing":
         return ("`claude` could not be started (%s)" % first,
-                "Check that its folder is on the PATH in the wake's launchd file.")
+                "Run `python3 -m agents_engine.wake install` again from a shell where `claude` is found, "
+                "so its folder is on the wake's PATH.")
     if k == "land":
         return ("the answer could not be saved: %s" % first,
                 "Check the agent's land() hook against what Claude returned.")

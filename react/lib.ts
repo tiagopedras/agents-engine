@@ -9,7 +9,7 @@ export {
 } from '../schedule.js'
 export type { Auto, AutoTone } from '../schedule.js'
 
-// `/Users/tiagopedras/Code/…` is the same eleven leading characters on every
+// `/Users/<name>/…` is the same leading characters on every
 // row, and they are the ones a narrow row truncates in favour of. The full
 // path is still on the element's title.
 export const tilde = (p?: string) => String(p || '').replace(/^\/Users\/[^/]+/, '~')

@@ -140,14 +140,15 @@ every open `IMPROVEMENTS.md` entry that does not need him. An agent that reads a
 list and wants requests marked on it can name an `enqueue(target, req)` hook.
 
     python3 -m agents_engine.enqueue                          who takes requests
-    python3 -m agents_engine.enqueue ux-agent --target tiago --title "..." --field angle=...
+    python3 -m agents_engine.enqueue ux-agent --target my-site --title "..." --field angle=...
     ... --now                                                  and run that one straight away
 
 `--now` is the on-demand path. It goes through the same lock, budget and daily
 log as a scheduled pass, and ignores the hours.
 
 Scheduled passes also sit under one ceiling for the whole machine, written in
-`~/Code/AGENTS/fences.json` (`runner/fences.py`): a daily spend across every
+`AGENTS/fences.json` under the agents root (`runner/fences.py`), or wherever
+`AGENTS_FENCES` names: a daily spend across every
 agent. Each item's cost is appended to `AGENTS/spend/<date>.jsonl`, whatever
 started it, and a scheduled pass stops before an item the day's remainder would
 not cover. Agents run in parallel, so the day can overshoot by one item per agent
@@ -156,7 +157,7 @@ counts. When each agent runs is its own hours, set on the dashboard.
 
 ## The single wake
 
-One launchd job, `com.tiagopedras.agents-wake`, wakes every hour and runs
+One launchd job, `bench.agents-wake`, wakes every hour and runs
 `python3 -m agents_engine.wake`. That finds every agent the way the dashboard
 does and runs each one's `wake` command, each in its own process, without
 waiting for the others. The agent decides whether this hour is one of its own.
@@ -187,7 +188,7 @@ failed. Wakes where nothing was due are one line at the bottom, not one line per
 hour.
 
 ```markdown
-# UX agent · tiago · Sun 21 Sep 2026
+# UX agent · my-site · Sun 21 Sep 2026
 
 2 ran · 1 not run · 1 failed · $3.40 of $6.00
 
@@ -234,11 +235,31 @@ needs debugging. Nobody is expected to read it in the morning.
 
 ## Installing the wake
 
+The job is written for whoever installs it rather than kept in this folder,
+because every line of it is a path on one person's machine. From `python/`:
+
 ```bash
-ln -s ~/Code/PACKAGES/agents-engine/launchd/com.tiagopedras.agents-wake.plist \
-      ~/Library/LaunchAgents/com.tiagopedras.agents-wake.plist
-launchctl load ~/Library/LaunchAgents/com.tiagopedras.agents-wake.plist
+python3 -m agents_engine.wake install                  # write the job and load it
+python3 -m agents_engine.wake install --dry-run        # print the job and write nothing
+python3 -m agents_engine.wake install --code-root ~/Projects
+python3 -m agents_engine.wake status                   # written, loaded, and the root it walks
+python3 -m agents_engine.wake uninstall                # unload it and delete the file
 ```
+
+`install` writes `~/Library/LaunchAgents/bench.agents-wake.plist` and loads it
+with `launchctl bootstrap`. The job runs the Python that ran `install`, from this
+copy of the package, at quarter past every hour. launchd starts a job with an
+almost empty `PATH`, so the job carries one that holds that Python's folder,
+the folder `claude` was found in, Homebrew's and `~/.local/bin`. Install from a
+shell where `claude` works, and again if `claude` moves. Agents are not looked
+for in the shell's environment either, so `--code-root`, or an
+`AGENTS_CODE_ROOT` exported when `install` runs, is written into the job.
+Running `install` again replaces the job in place.
+
+A machine that loaded the job by hand under its old label,
+`com.tiagopedras.agents-wake`, still reads as armed on the dashboard. `install`
+says so when that one is loaded as well, since both would wake every agent each
+hour, and leaves unloading it to you.
 
 `python3 -m agents_engine.wake --list` (from `python/`) says which agents it
 wakes. What each one did is in its own daily log; the wake's own line per agent

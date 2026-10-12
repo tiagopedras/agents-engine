@@ -264,7 +264,7 @@ export function AgentsApp({ base = '', title = 'Agents Dashboard', storagePrefix
           <span>
             {agents.length
               ? agents.map((a) => a.name + ' · ' + tilde(a.root || '')).join('  —  ')
-              : '~/Code'}
+              : tilde(s.root)}
           </span>
         </footer>
       </div>

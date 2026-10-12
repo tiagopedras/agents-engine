@@ -117,6 +117,8 @@ export interface Boundary { at: string; why?: string }
 export interface State {
   now?: string | number
   hour: number
+  /* The folder agents were looked for under. */
+  root?: string
   agents?: Agent[]
   strip?: StripCell[]
   boundaries?: Boundary[]

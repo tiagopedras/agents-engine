@@ -22,10 +22,9 @@ import os
 import subprocess
 import sys
 
+from .. import wake as _wake
 from . import core, daylog, fences, lock, settings, stream
 from .core import Agent
-
-WAKE_LABEL = "com.tiagopedras.agents-wake"
 
 
 def _stdin():
@@ -107,13 +106,7 @@ def by_hand(agent, target_id=None, item=None, dry=False):
 
 
 def _job():
-    plist = os.path.expanduser("~/Library/LaunchAgents/%s.plist" % WAKE_LABEL)
-    try:
-        loaded = subprocess.run(["launchctl", "list", WAKE_LABEL], capture_output=True,
-                                timeout=5).returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        loaded = False
-    return {"label": WAKE_LABEL, "installed": os.path.exists(plist), "loaded": loaded}
+    return _wake.job()
 
 
 def _tail(agent, n=12):

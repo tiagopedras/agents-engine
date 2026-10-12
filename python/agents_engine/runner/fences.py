@@ -9,8 +9,11 @@ It fences scheduled runs only. A run started by hand (`--now`, or Run now on the
 dashboard) is someone asking for it, so it goes ahead, and its spend still counts
 towards the day.
 
-    ~/Code/AGENTS/fences.json      or the path in $AGENTS_FENCES
+    <root>/AGENTS/fences.json      or the path in $AGENTS_FENCES
     {"daily_budget": 20.0}
+
+<root> is the folder agents are found under, `discover.code_root()`: what the
+host passed to `configure()`, else $AGENTS_CODE_ROOT, else ~/Code.
 
 A missing file, or a missing key, fences nothing.
 Spend is kept in `spend/YYYY-MM-DD.jsonl` beside the file, one line per item run.
@@ -22,11 +25,14 @@ import datetime as dt
 import json
 import os
 
-DEFAULT = "~/Code/AGENTS/fences.json"
+from .. import discover
 
 
 def path():
-    return os.path.expanduser(os.environ.get("AGENTS_FENCES") or DEFAULT)
+    named = os.environ.get("AGENTS_FENCES")
+    if named:
+        return os.path.expanduser(named)
+    return os.path.join(discover.code_root(), "AGENTS", "fences.json")
 
 
 def load():

@@ -330,7 +330,8 @@ export function Agents({ state, load, view }: { state: State; load: Load; view: 
         : (
           <Card as="section" className="panel">
             <div className="rows"><section className="trow"><p className="empty">
-              No agents found. An agent is any folder under ~/Code with an <code>agent.json</code> in it — see CONTRACT.md.
+              No agents found. An agent is any folder under {tilde(state.root) || 'the agents root'} with
+              an <code>agent.json</code> in it — see CONTRACT.md.
             </p></section></div>
           </Card>)}
     </div>

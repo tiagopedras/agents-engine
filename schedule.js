@@ -157,9 +157,9 @@ export function jobLine(agent) {
   if (!j) return { cls: '', text: '' }
   if (j.loaded) return { cls: 'ok', text: 'Armed · launchd has the hourly wake loaded' }
   if (j.installed) {
-    return { cls: 'bad', text: 'Not loaded · the plist is linked but launchctl has not loaded it' }
+    return { cls: 'bad', text: 'Not loaded · the plist is written but launchctl has not loaded it' }
   }
-  return { cls: 'bad', text: 'Not installed · see the agent’s README — one symlink and one launchctl load' }
+  return { cls: 'bad', text: 'Not installed · run python3 -m agents_engine.wake install' }
 }
 
 /* --- runs --------------------------------------------------------------- */

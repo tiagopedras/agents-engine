@@ -3,7 +3,7 @@ import { Button, Spinner } from '@tiagopedras/tenon'
 import { useDash } from '../ctx'
 import type { Action } from '../types'
 
-/* A button that starts something on an agent. `slow` ones — walking ~/Code for
+/* A button that starts something on an agent. `slow` ones — walking the root for
  * repos, say — hold the button for the whole round trip, because there is
  * nothing detached about them and the answer is the point. The rest hold it for
  * a fixed second and a half: the agent forks the run and answers straight away,
